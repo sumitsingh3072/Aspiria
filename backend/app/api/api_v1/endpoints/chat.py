@@ -19,14 +19,19 @@ def handle_chat_message(
     user_profile = crud.get_profile_by_user_id(db, user_id=current_user.id)
     chat_history = crud.get_chat_history(db, user_id=current_user.id)
     crud.create_chat_message(db, message=chat_in, user_id=current_user.id, is_from_user=True)
+
     try:
+        # Pass the db session to the AI service for RAG
         ai_response_text = ai_advisor.get_ai_response(
+            db=db,
             user_message=chat_in.message,
             chat_history=chat_history,
             user_profile=user_profile
         )
     except RuntimeError as e:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e))
+
     ai_message = chat.ChatMessageCreate(message=ai_response_text)
     crud.create_chat_message(db, message=ai_message, user_id=current_user.id, is_from_user=False)
+
     return chat.ChatResponse(response=ai_response_text)

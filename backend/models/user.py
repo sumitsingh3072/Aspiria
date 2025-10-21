@@ -1,6 +1,8 @@
 from sqlalchemy import Column, Integer, String, Boolean, Text, ForeignKey, JSON
 from sqlalchemy.orm import relationship
 from backend.db.session import Base
+from sqlalchemy.sql import func
+from backend.models.job import Job 
 
 class User(Base):
     """

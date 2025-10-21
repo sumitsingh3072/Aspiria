@@ -1,7 +1,10 @@
 from sqlalchemy.orm import Session
-from backend.models import user as user_model
-from backend.app.schemas import user as user_schema, profile as profile_schema, chat as chat_schema
+from backend.models import user as user_model, job as job_model
+from backend.models.job import Job
+from typing import List
+from backend.app.schemas import user as user_schema, profile as profile_schema, chat as chat_schema , job as job_schema
 from backend.app.core.security import get_password_hash
+from sqlalchemy import or_, String
 
 # --- User CRUD ---
 
@@ -67,3 +70,30 @@ def create_chat_message(db: Session, message: chat_schema.ChatMessageCreate, use
 def get_chat_history(db: Session, user_id: int, limit: int = 50) -> list[user_model.ChatMessage]:
     """Fetches the chat history for a user, ordered by creation time."""
     return db.query(user_model.ChatMessage).filter(user_model.ChatMessage.user_id == user_id).order_by(user_model.ChatMessage.id.desc()).limit(limit).all()[::-1]
+
+# --- Job CRUD ---
+
+def create_job(db: Session, job: job_schema.JobCreate) -> job_model.Job:
+    """Creates a new job posting in the database."""
+    db_job = job_model.Job(**job.model_dump())
+    db.add(db_job)
+    db.commit()
+    db.refresh(db_job)
+    return db_job
+
+def get_relevant_jobs(db: Session, skills: list[str], limit: int = 5) -> list[job_model.Job]:
+    """
+    Retrieves jobs from the database that match any of the provided skills.
+    This is the core of our RAG retrieval.
+    """
+    if not skills:
+        return []
+    
+    # Create a filter condition for each skill
+    # This will find jobs where the JSON 'skills' array contains any of the user's skills
+    # Note: This is a simple text search. For production, a proper search index or vector search would be better.
+    skill_filters = [job_model.Job.skills.cast(String).ilike(f'%{skill}%') for skill in skills]
+    
+    query = db.query(job_model.Job).filter(or_(*skill_filters))
+    return query.limit(limit).all()
+
