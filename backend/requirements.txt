@@ -15,3 +15,4 @@ python-dotenv==1.0.1
 requests==2.32.3
 passlib==1.7.4
 google-genai==1.44.0
+alembic==1.13.2
