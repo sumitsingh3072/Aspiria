@@ -11,13 +11,13 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-def create_db_and_tables():
-    Base.metadata.create_all(bind=engine)
+# def create_db_and_tables():
+#     Base.metadata.create_all(bind=engine)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("--- Starting up: Creating database tables ---")
-    create_db_and_tables()
+    # create_db_and_tables()
     print("--- Startup complete ---")
     yield
     print("--- Shutting down ---")
