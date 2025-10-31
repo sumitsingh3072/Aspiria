@@ -16,3 +16,7 @@ requests==2.32.3
 passlib==1.7.4
 google-genai==1.44.0
 alembic==1.13.2
+celery==5.4.0 
+redis==5.0.7
+gevent==25.9.1
+pgvector==0.3.2
