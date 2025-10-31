@@ -20,3 +20,4 @@ celery==5.4.0
 redis==5.0.7
 gevent==25.9.1
 pgvector==0.3.2
+sentence-transformers==3.0.1

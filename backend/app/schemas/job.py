@@ -7,6 +7,7 @@ class JobBase(BaseModel):
     location: Optional[str] = None
     description: Optional[str] = None
     skills: List[str] = []
+    description_embedding: Optional[List[float]] = None
 
 class JobCreate(JobBase):
     pass

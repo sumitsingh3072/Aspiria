@@ -1,8 +1,10 @@
+import logging
 import google.generativeai as genai
 from sqlalchemy.orm import Session
 from backend.app.core.config import settings
 from backend.models import user as user_model
 from backend.db import crud
+from sentence_transformers import SentenceTransformer
 
 # Configure the Gemini API client
 try:
@@ -11,6 +13,15 @@ try:
 except Exception as e:
     print(f"--- WARNING: Could not configure Gemini API: {e} ---")
     model = None
+
+try:
+    print("--- AI Advisor: Loading SentenceTransformer model 'all-MiniLM-L6-v2' ---")
+    embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+    print("--- AI Advisor: SentenceTransformer model loaded successfully ---")
+except Exception as e:
+    logging.error(f"AI Advisor: Failed to load SentenceTransformer model: {e}")
+    embedding_model = None
+
 
 def format_jobs_for_prompt(jobs: list) -> str:
     """Formats a list of job objects into a string for the AI prompt."""
@@ -68,12 +79,29 @@ def get_ai_response(
         raise RuntimeError("Gemini API is not configured. Please set the GEMINI_API_KEY environment variable.")
 
     # --- RAG: RETRIEVAL STEP ---
-    # Combine user's profile skills with any skills mentioned in their message
-    search_skills = user_profile.skills if user_profile and user_profile.skills else []
-    # A simple way to extract potential skills from the message
-    search_skills.extend([word.strip() for word in user_message.lower().split() if len(word) > 2])
-    
-    relevant_jobs = crud.get_relevant_jobs(db, skills=list(set(search_skills)))
+    relevant_jobs = []
+    if not embedding_model:
+        print("--- AI Advisor ERROR: Embedding model not loaded. Skipping RAG. ---")
+    else:
+        # Create a rich semantic query from the user's message and profile
+        query_text = user_message
+        if user_profile:
+            query_text += f"\nMy skills are: {', '.join(user_profile.skills) if user_profile.skills else 'None'}" #type: ignore
+            query_text += f"\nMy interests are: {', '.join(user_profile.interests) if user_profile.interests else 'None'}" #type: ignore
+            query_text += f"\nMy career aspiration is: {user_profile.career_aspirations or 'None'}"
+        
+        print(f"--- AI Advisor: Generating embedding for query: {query_text[:80]}... ---")
+        
+        # Generate embedding for the combined query text
+        try:
+            query_embedding = embedding_model.encode(query_text).tolist()
+            
+            # Call the new CRUD function to perform vector search
+            relevant_jobs = crud.get_relevant_jobs(db, query_embedding=query_embedding)
+            print(f"--- AI Advisor: Found {len(relevant_jobs)} relevant jobs via vector search ---")
+        except Exception as e:
+            print(f"Error during vector search: {e}")
+            relevant_jobs = []
 
     # --- RAG: AUGMENTATION STEP ---
     augmented_prompt = generate_augmented_prompt(user_profile, relevant_jobs)

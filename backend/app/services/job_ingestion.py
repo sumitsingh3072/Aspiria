@@ -1,6 +1,16 @@
+import logging
 from sqlalchemy.orm import Session
 from backend.db import crud
 from backend.app.schemas import job as job_schema
+from sentence_transformers import SentenceTransformer
+
+try:
+    print("--- Loading SentenceTransformer model 'all-MiniLM-L6-v2' ---")
+    embedding_model = SentenceTransformer('all-MiniLM-L6-v2') 
+    print("--- SentenceTransformer model loaded successfully ---")
+except Exception as e:
+    logging.error(f"Failed to load SentenceTransformer model: {e}")
+    embedding_model = None
 
 def fetch_mock_jobs() -> list[dict]:
     """

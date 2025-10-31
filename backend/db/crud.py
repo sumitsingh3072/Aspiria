@@ -81,19 +81,19 @@ def create_job(db: Session, job: job_schema.JobCreate) -> job_model.Job:
     db.refresh(db_job)
     return db_job
 
-def get_relevant_jobs(db: Session, skills: list[str], limit: int = 5) -> list[job_model.Job]:
+def get_relevant_jobs(db: Session, query_embedding: List[float], limit: int = 5) -> list[job_model.Job]:
     """
-    Retrieves jobs from the database that match any of the provided skills.
-    This is the core of our RAG retrieval.
+    Retrieves jobs from the database that are semantically similar
+    to the user's query embedding using pgvector's L2 distance.
     """
-    if not skills:
+    if not query_embedding:
         return []
     
-    # Create a filter condition for each skill
-    # This will find jobs where the JSON 'skills' array contains any of the user's skills
-    # Note: This is a simple text search. For production, a proper search index or vector search would be better.
-    skill_filters = [job_model.Job.skills.cast(String).ilike(f'%{skill}%') for skill in skills]
+    # Use the L2 distance operator '<->' to find the nearest neighbors
+    # The pgvector.sqlalchemy library overloads this operator
+    query = db.query(job_model.Job).order_by(
+        job_model.Job.description_embedding.l2_distance(query_embedding)
+    ).limit(limit)
     
-    query = db.query(job_model.Job).filter(or_(*skill_filters))
-    return query.limit(limit).all()
+    return query.all()
 
