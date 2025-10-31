@@ -93,9 +93,6 @@ def get_relevant_jobs(db: Session, query_embedding: List[float], limit: int = 5)
     """
     if not query_embedding:
         return []
-    
-    # Use the L2 distance operator '<->' to find the nearest neighbors
-    # The pgvector.sqlalchemy library overloads this operator
     query = db.query(job_model.Job).order_by(
         job_model.Job.description_embedding.l2_distance(query_embedding)
     ).limit(limit)

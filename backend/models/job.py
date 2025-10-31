@@ -7,7 +7,6 @@ EMBEDDING_DIM = 384
 class Job(Base):
     """Database model for job postings."""
     __tablename__ = "jobs"
-
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, index=True, nullable=False)
     company = Column(String, index=True)

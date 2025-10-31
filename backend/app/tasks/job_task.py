@@ -8,7 +8,7 @@ def simple_test_task(x, y):
     print(f"--- Running simple test task: {x} + {y} ---")
     return x + y
 
-@celery_app.task(bind=True) # bind=True gives access to 'self'
+@celery_app.task(bind=True)
 def ingest_jobs_task(self):
     """
     Celery task to ingest jobs into the database asynchronously.

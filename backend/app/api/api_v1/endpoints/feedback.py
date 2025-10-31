@@ -23,7 +23,7 @@ def create_feedback_for_message(
             detail="Chat message not found.",
         )
 
-    if msg.user_id != current_user.id:
+    if msg.user_id != current_user.id: #type: ignore
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only provide feedback on your own chat messages.",

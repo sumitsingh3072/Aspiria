@@ -5,8 +5,6 @@ from backend.app.core.config import settings
 from backend.models import user as user_model
 from backend.db import crud
 from sentence_transformers import SentenceTransformer
-
-# Configure the Gemini API client
 try:
     genai.configure(api_key=settings.GEMINI_API_KEY)
     model = genai.GenerativeModel('gemini-2.5-flash')
@@ -77,13 +75,10 @@ def get_ai_response(
     """
     if not model:
         raise RuntimeError("Gemini API is not configured. Please set the GEMINI_API_KEY environment variable.")
-
-    # --- RAG: RETRIEVAL STEP ---
     relevant_jobs = []
     if not embedding_model:
         print("--- AI Advisor ERROR: Embedding model not loaded. Skipping RAG. ---")
     else:
-        # Create a rich semantic query from the user's message and profile
         query_text = user_message
         if user_profile:
             query_text += f"\nMy skills are: {', '.join(user_profile.skills) if user_profile.skills else 'None'}" #type: ignore
@@ -91,8 +86,6 @@ def get_ai_response(
             query_text += f"\nMy career aspiration is: {user_profile.career_aspirations or 'None'}"
         
         print(f"--- AI Advisor: Generating embedding for query: {query_text[:80]}... ---")
-        
-        # Generate embedding for the combined query text
         try:
             query_embedding = embedding_model.encode(query_text).tolist()
             
@@ -102,11 +95,7 @@ def get_ai_response(
         except Exception as e:
             print(f"Error during vector search: {e}")
             relevant_jobs = []
-
-    # --- RAG: AUGMENTATION STEP ---
     augmented_prompt = generate_augmented_prompt(user_profile, relevant_jobs)
-    
-    # Format the history for the model
     formatted_history = []
     for msg in chat_history:
         role = "user" if msg.is_from_user else "model"
@@ -114,8 +103,6 @@ def get_ai_response(
 
     try:
         chat = model.start_chat(history=formatted_history)
-        
-        # Prepend the full augmented prompt to the user's latest message for context
         full_message = f"{augmented_prompt}\n\n---\n\nUser Question: {user_message}"
 
         response = chat.send_message(full_message)

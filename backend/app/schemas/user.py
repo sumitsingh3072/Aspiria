@@ -1,9 +1,6 @@
 from pydantic import BaseModel, EmailStr, Field
 
-
-
 # --- Token Schemas ---
-
 class Token(BaseModel):
     """Schema for the access token."""
     access_token: str
