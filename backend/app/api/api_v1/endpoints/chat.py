@@ -31,7 +31,8 @@ def handle_chat_message(
     except RuntimeError as e:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e))
 
-    ai_message = chat.ChatMessageCreate(message=ai_response_text)
-    crud.create_chat_message(db, message=ai_message, user_id=current_user.id, is_from_user=False)
+    ai_message_schema = chat.ChatMessageCreate(message=ai_response_text)
+    db_ai_message = crud.create_chat_message(db, message=ai_message_schema, user_id=current_user.id, is_from_user=False)
 
-    return chat.ChatResponse(response=ai_response_text)
+    # --- Return the new ID and the response text ---
+    return chat.ChatResponse(response=ai_response_text, message_id=db_ai_message.id)

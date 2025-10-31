@@ -19,3 +19,4 @@ class ChatMessageRead(ChatMessageBase):
 class ChatResponse(BaseModel):
     """Schema for the AI's response."""
     response: str
+    message_id: int

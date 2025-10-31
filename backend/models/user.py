@@ -47,3 +47,16 @@ class ChatMessage(Base):
     message = Column(Text, nullable=False)
     is_from_user = Column(Boolean, default=True)
     owner = relationship("User", back_populates="chat_messages")
+    feedback = relationship("Feedback", uselist=False, back_populates="chat_message", cascade="all, delete-orphan")
+
+
+class Feedback(Base):
+    """
+    Database model for user feedback on an AI chat message.
+    """
+    __tablename__ = "feedback"
+    id = Column(Integer, primary_key=True, index=True)
+    chat_message_id = Column(Integer, ForeignKey("chat_messages.id"), unique=True, nullable=False)
+    rating = Column(Integer, nullable=False) # e.g., 1 for "bad", 5 for "good"
+    comment = Column(Text, nullable=True)
+    chat_message = relationship("ChatMessage", back_populates="feedback")

@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from backend.models import user as user_model, job as job_model
 from backend.models.job import Job
 from typing import List
-from backend.app.schemas import user as user_schema, profile as profile_schema, chat as chat_schema , job as job_schema
+from backend.app.schemas import user as user_schema, profile as profile_schema, chat as chat_schema , job as job_schema , feedback as feedback_schema
 from backend.app.core.security import get_password_hash
 from sqlalchemy import or_, String
 
@@ -67,6 +67,11 @@ def create_chat_message(db: Session, message: chat_schema.ChatMessageCreate, use
     db.refresh(db_message)
     return db_message
 
+def get_chat_message_by_id(db: Session, message_id: int) -> user_model.ChatMessage | None:
+    """Fetches a single chat message by its ID."""
+    return db.query(user_model.ChatMessage).filter(user_model.ChatMessage.id == message_id).first()
+
+
 def get_chat_history(db: Session, user_id: int, limit: int = 50) -> list[user_model.ChatMessage]:
     """Fetches the chat history for a user, ordered by creation time."""
     return db.query(user_model.ChatMessage).filter(user_model.ChatMessage.user_id == user_id).order_by(user_model.ChatMessage.id.desc()).limit(limit).all()[::-1]
@@ -96,4 +101,18 @@ def get_relevant_jobs(db: Session, query_embedding: List[float], limit: int = 5)
     ).limit(limit)
     
     return query.all()
+
+# --- Feedback CRUD ---
+
+def create_feedback(db: Session, feedback: feedback_schema.FeedbackCreate) -> user_model.Feedback:
+    """Creates a new feedback entry for a chat message."""
+    db_feedback = user_model.Feedback(
+        chat_message_id=feedback.chat_message_id,
+        rating=feedback.rating,
+        comment=feedback.comment
+    )
+    db.add(db_feedback)
+    db.commit()
+    db.refresh(db_feedback)
+    return db_feedback
 
