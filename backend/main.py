@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.db.session import engine, Base
 from backend.app.core.config import settings
 from backend.app.api.api_v1.api import api_router
+from starlette.middleware.sessions import SessionMiddleware
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if PROJECT_ROOT not in sys.path:
@@ -26,7 +27,11 @@ app = FastAPI(
     title=settings.PROJECT_NAME,
     lifespan=lifespan
 )
-
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.SECRET_KEY, 
+    max_age=3600 # Session expiration in seconds (1 hour)
+)
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
 app.add_middleware(
