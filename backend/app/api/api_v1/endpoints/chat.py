@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from backend.app.api import deps
-from backend.app.schemas import chat
+from backend.app.schemas import chat, translation as translation_schema
 from backend.db import crud
 from backend.models.user import User
-from backend.app.services import ai_advisor
+from backend.app.services import ai_advisor, translation_service
 router = APIRouter()
 
 @router.post("/", response_model=chat.ChatResponse)
@@ -33,3 +33,51 @@ def handle_chat_message(
     ai_message_schema = chat.ChatMessageCreate(message=ai_response_text)
     db_ai_message = crud.create_chat_message(db, message=ai_message_schema, user_id=current_user.id, is_from_user=False)
     return chat.ChatResponse(response=ai_response_text, message_id=db_ai_message.id)
+
+
+@router.post("/translate", response_model=translation_schema.MultilingualChatResponse)
+def handle_multilingual_chat(
+    chat_in: translation_schema.MultilingualChatRequest,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user)
+):
+    """
+    Handle a multilingual chat message.
+    1. Translates user message to English.
+    2. Sends English message to AI.
+    3. Translates AI response back to user's language.
+    """
+    translation_result = translation_service.translate_text(chat_in.message, target_language="en")
+    english_message_text = translation_result.get("translatedText", chat_in.message)
+    detected_language = translation_result.get("detectedSourceLanguage", "en")
+
+    user_profile = crud.get_profile_by_user_id(db, user_id=current_user.id)
+    chat_history = crud.get_chat_history(db, user_id=current_user.id)
+
+    user_message_schema = chat.ChatMessageCreate(message=english_message_text)
+    crud.create_chat_message(db, message=user_message_schema, user_id=current_user.id, is_from_user=True)
+
+    try:
+        ai_response_text = ai_advisor.get_ai_response(
+            db=db,
+            user_message=english_message_text,
+            chat_history=chat_history,
+            user_profile=user_profile
+        )
+    except RuntimeError as e:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e))
+    ai_message_schema = chat.ChatMessageCreate(message=ai_response_text)
+    db_ai_message = crud.create_chat_message(db, message=ai_message_schema, user_id=current_user.id, is_from_user=False)
+
+    if detected_language != "en":
+        ai_translation_result = translation_service.translate_text(ai_response_text, target_language=detected_language)
+        final_response = ai_translation_result.get("translatedText", ai_response_text)
+    else:
+        final_response = ai_response_text
+
+    return translation_schema.MultilingualChatResponse(
+        response=final_response,
+        original_language=detected_language,
+        english_response=ai_response_text,
+        message_id=db_ai_message.id
+    )

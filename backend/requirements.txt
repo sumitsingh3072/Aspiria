@@ -21,3 +21,4 @@ redis==5.0.7
 gevent==25.9.1
 pgvector==0.3.2
 sentence-transformers==3.0.1
+google-cloud-translate==3.12.1
