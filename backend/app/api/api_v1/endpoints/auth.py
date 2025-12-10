@@ -1,17 +1,18 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from backend.app.api import deps
-from backend.app.schemas.user import UserCreate, UserRead , Token
+from backend.app.schemas.user import UserCreate, UserRead, Token, PasswordResetRequest, NewPassword
 from backend.db import crud
 from backend.app.core import security
 from backend.models.user import User
+from backend.app.services import email_service
 import string
 import secrets
 from authlib.integrations.starlette_client import OAuth
 from backend.app.core.config import settings
 from starlette.requests import Request
-
+from pydantic import EmailStr
 
 router = APIRouter()
 
@@ -21,7 +22,7 @@ oauth.register(
     name='google',
     client_id=settings.GOOGLE_CLIENT_ID,
     client_secret=settings.GOOGLE_CLIENT_SECRET,
-    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+    server_metadata_url='[https://accounts.google.com/.well-known/openid-configuration](https://accounts.google.com/.well-known/openid-configuration)',
     client_kwargs={
         'scope': 'openid email profile'
     }
@@ -68,12 +69,15 @@ async def auth_google(request: Request, db: Session = Depends(deps.get_db)):
     user = crud.get_user_by_email(db, email=email)
     
     if not user:
-
         alphabet = string.ascii_letters + string.digits + string.punctuation
         random_password = ''.join(secrets.choice(alphabet) for i in range(32))
         
         user_in = UserCreate(email=email, full_name=name, password=random_password)
         user = crud.create_user(db=db, user=user_in)
+        try:
+            await email_service.send_welcome_email(email_to=email, username=name)
+        except Exception as e:
+            print(f"Failed to send welcome email: {e}")
     
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
@@ -85,6 +89,7 @@ async def auth_google(request: Request, db: Session = Depends(deps.get_db)):
 @router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
 async def register_user(
     user_in: UserCreate, 
+    background_tasks: BackgroundTasks,
     db: Session = Depends(deps.get_db)
 ):
     """
@@ -97,6 +102,8 @@ async def register_user(
             detail="An account with this email already exists.",
         )
     user = crud.create_user(db=db, user=user_in)
+    background_tasks.add_task(email_service.send_welcome_email, user.email, user.full_name or "User")
+    
     return user
 
 
@@ -138,3 +145,63 @@ async def read_users_me(
     Get the current logged-in user's details.
     """
     return current_user
+
+
+@router.post("/forgot-password", status_code=status.HTTP_200_OK)
+async def forgot_password(
+    password_reset: PasswordResetRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(deps.get_db)
+):
+    """
+    Trigger a password reset email.
+    """
+    user = crud.get_user_by_email(db, email=password_reset.email)
+    if not user:
+        return {"message": "If an account exists, a reset email has been sent."}
+    
+    token = security.create_password_reset_token(email=user.email)
+    background_tasks.add_task(email_service.send_reset_password_email, user.email, token)
+    
+    return {"message": "If an account exists, a reset email has been sent."}
+
+
+@router.post("/reset-password", status_code=status.HTTP_200_OK)
+async def reset_password(
+    new_password_data: NewPassword,
+    db: Session = Depends(deps.get_db)
+):
+    """
+    Reset password using a valid token.
+    """
+    email = security.verify_password_reset_token(new_password_data.token)
+    if not email:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired token")
+    
+    user = crud.get_user_by_email(db, email=email)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    
+    # Update password
+    hashed_password = security.get_password_hash(new_password_data.new_password)
+    user.hashed_password = hashed_password
+    db.add(user)
+    db.commit()
+    
+    return {"message": "Password updated successfully."}
+
+# @router.post("/test-email")
+# async def test_email_config(email_data: PasswordResetRequest):
+#     """
+#     Test endpoint to verify email configuration.
+#     Accepts JSON body: {"email": "user@example.com"}
+#     """
+#     try:
+#         await email_service.send_email(
+#             subject="Test Email from Aspiria",
+#             recipients=[email_data.email],
+#             html_body="<h1>Hello!</h1><p>Testing Aspiria email service 💦💦.</p>"
+#         )
+#         return {"message": "Test email sent successfully"}
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")

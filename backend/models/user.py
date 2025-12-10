@@ -17,7 +17,7 @@ class User(Base):
     is_active = Column(Boolean(), default=True)
     chat_messages = relationship("ChatMessage", back_populates="owner", cascade="all, delete-orphan")
     profile = relationship("Profile", uselist=False, back_populates="owner", cascade="all, delete-orphan")
-
+    notifications = relationship("Notification", back_populates="owner", cascade="all, delete-orphan")
 
 class Profile(Base):
     """

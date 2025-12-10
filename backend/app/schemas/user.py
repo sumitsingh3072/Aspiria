@@ -35,3 +35,17 @@ class UserRead(UserBase):
 
     class Config:
         from_attributes = True # Replaces orm_mode = True
+
+class PasswordResetRequest(BaseModel):
+    """Schema for requesting a password reset email."""
+    email: EmailStr
+
+class NewPassword(BaseModel):
+    """Schema for setting a new password using a token."""
+    token: str
+    new_password: str = Field(
+        ...,
+        min_length=8,
+        max_length=256,
+        description="New password must be at least 8 characters long."
+    )
