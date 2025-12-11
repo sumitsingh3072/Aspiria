@@ -1,55 +1,80 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from '@/context/AuthContext';
-// import ProtectedRoute from '@/components/protected/ProtectedRoute';
-import DashboardLayout from '@/components/layout/DashboardLayout';
+import { QueryClientProvider } from '@tanstack/react-query'
+import { BrowserRouter, Route, Routes, Navigate, Outlet } from 'react-router-dom'
+import { Toaster } from "@/components/ui/sonner"
+import { AuthProvider } from '@/context/auth-provider'
+import { ThemeProvider } from '@/components/theme-provider'
+import { queryClient } from '@/lib/query-client'
 
-// Pages
-import HomePage from '@/pages/public/HomePage';
-import LoginPage from '@/pages/auth/LoginPage';
-import RegisterPage from '@/pages/auth/RegisterPage';
-import OnboardingPage from '@/pages/dashboard/OnboardingPage';
-import ChatPage from '@/pages/dashboard/ChatPage';
-import ProfilePage from '@/pages/dashboard/ProfilePage';
-import { Toaster } from './components/ui/sonner';
+import LoginPage from '@/pages/auth/login'
+import RegisterPage from '@/pages/auth/register'
+import LandingPage from '@/pages/landing/index'
+import DashboardLayout from '@/components/layout/dashboard-layout'
+import DashboardPage from '@/pages/dashboard/index'
+import ChatPage from '@/pages/chat/index'
+import IngestionPage from '@/pages/ingestion/index'
+import ProfilePage from '@/pages/profile/index'
+import NotificationsPage from '@/pages/notifications/index'
+import FeedbackPage from '@/pages/feedback/index'
+
+// Protected Route Wrapper - Temporarily Disabled (Pass-through)
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  // const { user, isLoading } = useAuth()
+
+  // if (isLoading) {
+  //   return <div className="flex h-screen items-center justify-center bg-background text-foreground">Loading...</div>
+  // }
+
+  // if (!user) {
+  //   return <Navigate to="/auth/login" replace />
+  // }
+
+  return <>{children}</>
+}
+
+// Layout Wrapper for App Routes
+const AppLayout = () => {
+  return (
+    <ProtectedRoute>
+      <DashboardLayout>
+        <Outlet />
+      </DashboardLayout>
+    </ProtectedRoute>
+  )
+}
 
 function App() {
   return (
-    <>
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/" element={<HomePage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
+        <AuthProvider>
+          <BrowserRouter>
+            <Routes>
+              {/* Public Route - Landing Page */}
+              <Route path="/" element={<LandingPage />} />
 
-          {/* Protected Routes */}
-          <Route 
-            path="/onboarding" 
-            element={
-              // <ProtectedRoute>
-                <OnboardingPage />
-              // </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/dashboard" 
-            element={
-              // <ProtectedRoute>
-                <DashboardLayout />
-              // </ProtectedRoute>
-            }
-          >
-            <Route path="chat" element={<ChatPage />} />
-            <Route path="profile" element={<ProfilePage />} />
-            <Route index element={<Navigate to="chat" replace />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-      <Toaster />
-    </AuthProvider>
-    </>
-  );
+              {/* Auth Routes */}
+              <Route path="/auth/login" element={<LoginPage />} />
+              <Route path="/auth/register" element={<RegisterPage />} />
+
+              {/* App Routes (Protected w/ Layout) */}
+              <Route element={<AppLayout />}>
+                <Route path="/dashboard" element={<DashboardPage />} />
+                <Route path="/chat" element={<ChatPage />} />
+                <Route path="/ingestion" element={<IngestionPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/notifications" element={<NotificationsPage />} />
+                <Route path="/feedback" element={<FeedbackPage />} />
+              </Route>
+
+              {/* Fallback */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+            <Toaster />
+          </BrowserRouter>
+        </AuthProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
+  )
 }
 
-export default App;
+export default App
