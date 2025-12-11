@@ -1,7 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter, Route, Routes, Navigate, Outlet } from 'react-router-dom'
 import { Toaster } from "@/components/ui/sonner"
-import { AuthProvider } from '@/context/auth-provider'
+import { AuthProvider, useAuth } from '@/context/auth-provider'
 import { ThemeProvider } from '@/components/theme-provider'
 import { queryClient } from '@/lib/query-client'
 
@@ -18,15 +18,15 @@ import FeedbackPage from '@/pages/feedback/index'
 
 // Protected Route Wrapper - Temporarily Disabled (Pass-through)
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  // const { user, isLoading } = useAuth()
+  const { user, isLoading } = useAuth()
 
-  // if (isLoading) {
-  //   return <div className="flex h-screen items-center justify-center bg-background text-foreground">Loading...</div>
-  // }
+  if (isLoading) {
+    return <div className="flex h-screen items-center justify-center bg-background text-foreground">Loading...</div>
+  }
 
-  // if (!user) {
-  //   return <Navigate to="/auth/login" replace />
-  // }
+  if (!user) {
+    return <Navigate to="/auth/login" replace />
+  }
 
   return <>{children}</>
 }
