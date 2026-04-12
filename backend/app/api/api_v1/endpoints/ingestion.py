@@ -95,7 +95,7 @@ def auto_trigger_on_login(
         return {"triggered": False, "reason": f"Cooldown active. {remaining} minutes remaining."}
 
     # Fire the Celery task
-    task_result = ingest_jobs_task.delay()
+    task_result = ingest_jobs_task.delay(user_id=current_user.id)
     print(f"--- Auto-triggered ingestion on login for user {current_user.id}, task: {task_result.id} ---")
 
     # Update last run timestamp
@@ -143,7 +143,7 @@ def trigger_job_ingestion_manual(
             detail=f"Pipeline cooldown active. Try again in {remaining} minutes.",
         )
 
-    task_result = ingest_jobs_task.delay()
+    task_result = ingest_jobs_task.delay(user_id=current_user.id)
     prefs.last_pipeline_run = datetime.now(timezone.utc)
     db.commit()
 
@@ -159,7 +159,7 @@ def force_trigger_ingestion(
     Force-trigger pipeline, ignoring cooldown. For admin/testing use.
     """
     prefs = _get_or_create_prefs(db, current_user.id)
-    task_result = ingest_jobs_task.delay()
+    task_result = ingest_jobs_task.delay(user_id=current_user.id)
     prefs.last_pipeline_run = datetime.now(timezone.utc)
     db.commit()
     return {"message": "Force-triggered job ingestion.", "task_id": task_result.id}

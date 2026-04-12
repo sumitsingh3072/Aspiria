@@ -34,6 +34,8 @@ class Profile(Base):
     skills = Column(JSON, nullable=True)
     interests = Column(JSON, nullable=True)
     career_aspirations = Column(Text, nullable=True)
+    experience = Column(String, nullable=True)           # e.g. "Fresher", "2 years", "5+ years"
+    preferred_job_roles = Column(JSON, nullable=True)    # e.g. ["Software Engineer", "Data Scientist"]
     owner = relationship("User", back_populates="profile")
 
 

@@ -30,9 +30,11 @@ import api from "@/lib/api";
 const formSchema = z.object({
     education_level: z.string().optional(),
     field_of_study: z.string().optional(),
-    skills: z.string().optional(), // Comma separated for input
-    interests: z.string().optional(), // Comma separated for input
+    skills: z.string().optional(),
+    interests: z.string().optional(),
     career_aspirations: z.string().optional(),
+    experience: z.string().optional(),
+    preferred_job_roles: z.string().optional(),
 });
 
 type ProfileFormValues = z.infer<typeof formSchema>;
@@ -62,6 +64,8 @@ export default function ProfilePage() {
             skills: "",
             interests: "",
             career_aspirations: "",
+            experience: "",
+            preferred_job_roles: "",
         },
     });
 
@@ -74,6 +78,8 @@ export default function ProfilePage() {
                 skills: profile.skills?.join(", ") || "",
                 interests: profile.interests?.join(", ") || "",
                 career_aspirations: profile.career_aspirations || "",
+                experience: profile.experience || "",
+                preferred_job_roles: profile.preferred_job_roles?.join(", ") || "",
             });
             setIsEditing(true); // Profile exists, so we are updating
         } else {
@@ -87,6 +93,7 @@ export default function ProfilePage() {
                 ...values,
                 skills: values.skills ? values.skills.split(",").map((s) => s.trim()).filter(Boolean) : [],
                 interests: values.interests ? values.interests.split(",").map((s) => s.trim()).filter(Boolean) : [],
+                preferred_job_roles: values.preferred_job_roles ? values.preferred_job_roles.split(",").map((s) => s.trim()).filter(Boolean) : [],
             };
 
             if (isEditing) {
@@ -203,6 +210,38 @@ export default function ProfilePage() {
                                                 {...field}
                                             />
                                         </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="experience"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Experience</FormLabel>
+                                        <FormControl>
+                                            <Input placeholder="e.g. Fresher, 2 years, 5+ years" {...field} />
+                                        </FormControl>
+                                        <FormDescription>
+                                            Your total work experience.
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="preferred_job_roles"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Preferred Job Roles</FormLabel>
+                                        <FormControl>
+                                            <Input placeholder="e.g. Software Engineer, Data Scientist, ML Engineer (comma separated)" {...field} />
+                                        </FormControl>
+                                        <FormDescription>
+                                            Job titles you're looking for. These drive your personalized job recommendations.
+                                        </FormDescription>
                                         <FormMessage />
                                     </FormItem>
                                 )}

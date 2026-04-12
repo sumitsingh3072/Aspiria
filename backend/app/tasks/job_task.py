@@ -9,16 +9,16 @@ def simple_test_task(x, y):
     return x + y
 
 @celery_app.task(bind=True)
-def ingest_jobs_task(self):
+def ingest_jobs_task(self, user_id: int = None):
     """
-    Celery task to ingest jobs into the database asynchronously.
+    Celery task to ingest personalized jobs for a specific user.
     """
-    print("--- Starting job ingestion task ---")
+    print(f"--- Starting personalized job ingestion for user_id={user_id} ---")
     db: Session = SessionLocal() 
     try:
-        job_ingestion_service.ingest_jobs_to_db(db)
+        job_ingestion_service.ingest_jobs_to_db(db, user_id=user_id)
         print("--- Job ingestion task finished successfully ---")
-        return {"status": "success"}
+        return {"status": "success", "user_id": user_id}
     except Exception as e:
         print(f"--- Job ingestion task failed: {e} ---")
         return {"status": "failure", "error": str(e)}
@@ -30,39 +30,34 @@ def ingest_jobs_task(self):
 def hourly_auto_refresh_task():
     """
     Celery Beat periodic task: runs every hour.
-    Checks which users have auto_refresh_enabled=True and triggers ingestion.
-    The actual job data is shared, so we only need to run the pipeline once
-    if any user has the feature enabled.
+    Triggers personalized ingestion for each user with auto-refresh enabled.
     """
     from backend.models.ingestion_preferences import IngestionPreferences
     from datetime import datetime, timezone
 
     db: Session = SessionLocal()
     try:
-        active_users = (
+        active_prefs = (
             db.query(IngestionPreferences)
             .filter(IngestionPreferences.auto_refresh_enabled == True)
-            .count()
+            .all()
         )
 
-        if active_users == 0:
+        if not active_prefs:
             print("--- Hourly auto-refresh: No users with auto-refresh enabled. Skipping. ---")
             return {"status": "skipped", "reason": "no active subscribers"}
 
-        print(f"--- Hourly auto-refresh: {active_users} user(s) with auto-refresh. Running pipeline... ---")
-        job_ingestion_service.ingest_jobs_to_db(db)
-
-        # Update last_pipeline_run for all auto-refresh users
+        print(f"--- Hourly auto-refresh: Running for {len(active_prefs)} user(s) ---")
+        
         now = datetime.now(timezone.utc)
-        (
-            db.query(IngestionPreferences)
-            .filter(IngestionPreferences.auto_refresh_enabled == True)
-            .update({"last_pipeline_run": now})
-        )
-        db.commit()
+        for pref in active_prefs:
+            # Run personalized ingestion per user
+            job_ingestion_service.ingest_jobs_to_db(db, user_id=pref.user_id)
+            pref.last_pipeline_run = now
 
+        db.commit()
         print("--- Hourly auto-refresh completed successfully ---")
-        return {"status": "success", "subscribers": active_users}
+        return {"status": "success", "subscribers": len(active_prefs)}
     except Exception as e:
         print(f"--- Hourly auto-refresh failed: {e} ---")
         return {"status": "failure", "error": str(e)}
