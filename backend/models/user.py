@@ -3,6 +3,7 @@ from sqlalchemy.orm import relationship
 from backend.db.session import Base
 from sqlalchemy.sql import func
 from backend.models.job import Job 
+from backend.models.backend_notification import Notification  # noqa: F401 — required for SQLAlchemy relationship resolution
 
 class User(Base):
     """

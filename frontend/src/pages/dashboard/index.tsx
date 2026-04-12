@@ -10,10 +10,25 @@ import {
     Target,
     TrendingUp,
     Award,
-    MoveRight
+    MoveRight,
+    Building2,
+    MapPin,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
+import api from "@/lib/api";
+import { Badge } from "@/components/ui/badge";
+
+interface Job {
+    id: number;
+    title: string;
+    company: string | null;
+    location: string | null;
+    description: string | null;
+    skills: string[] | null;
+}
 
 const container = {
     hidden: { opacity: 0 },
@@ -31,6 +46,24 @@ const item = {
 };
 
 export default function DashboardPage() {
+    const { data: countData } = useQuery<{ count: number }>({
+        queryKey: ["jobs-count"],
+        queryFn: async () => {
+            const { data } = await api.get("/jobs/count");
+            return data;
+        },
+    });
+
+    const { data: recentJobs } = useQuery<Job[]>({
+        queryKey: ["recent-jobs-dashboard"],
+        queryFn: async () => {
+            const { data } = await api.get("/jobs/?limit=5");
+            return data;
+        },
+    });
+
+    const jobCount = countData?.count ?? 0;
+
     return (
         <motion.div
             variants={container}
@@ -48,7 +81,7 @@ export default function DashboardPage() {
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 {[
                     { title: "Profile Strength", icon: Award, value: "85%", sub: "Top 15% of candidates" },
-                    { title: "Jobs Matched", icon: Briefcase, value: "+12", sub: "4 new today" },
+                    { title: "Jobs Ingested", icon: Briefcase, value: `${jobCount}`, sub: jobCount > 0 ? "From latest pipeline run" : "Run pipeline to ingest" },
                     { title: "Skills Verified", icon: Target, value: "14/20", sub: "2 pending verification" },
                     { title: "Interview Readiness", icon: TrendingUp, value: "High", sub: "Based on recent mock tests" }
                 ].map((stat, i) => (
@@ -89,33 +122,46 @@ export default function DashboardPage() {
                 <motion.div variants={item} className="col-span-3">
                     <Card className="col-span-3 shadow-sm h-full">
                         <CardHeader>
-                            <CardTitle>Recommended Jobs</CardTitle>
+                            <CardTitle>Latest Ingested Jobs</CardTitle>
                             <CardDescription>
-                                AI-selected roles matching your profile.
+                                Most recent jobs from the data pipeline.
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <div className="space-y-6">
-                                {[
-                                    { role: "Senior Frontend Engineer", crop: "TechCorp Inc.", loc: "Remote", match: "98%", color: "text-green-600" },
-                                    { role: "AI Solutions Architect", crop: "InnovateAI", loc: "New York, NY", match: "92%", color: "text-green-600" },
-                                    { role: "Full Stack Developer", crop: "StartupHub", loc: "San Francisco, CA", match: "85%", color: "text-yellow-600" }
-                                ].map((job, i) => (
-                                    <div key={i} className="flex items-center group cursor-pointer">
-                                        <div className="space-y-1">
-                                            <p className="text-sm font-medium leading-none group-hover:text-primary transition-colors">
-                                                {job.role}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground">
-                                                {job.crop} • {job.loc}
-                                            </p>
+                            <div className="space-y-5">
+                                {recentJobs && recentJobs.length > 0 ? (
+                                    recentJobs.map((job) => (
+                                        <div key={job.id} className="flex items-start group cursor-pointer">
+                                            <div className="space-y-1 min-w-0 flex-1">
+                                                <p className="text-sm font-medium leading-none group-hover:text-primary transition-colors truncate">
+                                                    {job.title}
+                                                </p>
+                                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                    {job.company && (
+                                                        <span className="flex items-center gap-1 truncate">
+                                                            <Building2 className="h-3 w-3 shrink-0" /> {job.company}
+                                                        </span>
+                                                    )}
+                                                    {job.location && (
+                                                        <span className="flex items-center gap-1 truncate">
+                                                            <MapPin className="h-3 w-3 shrink-0" /> {job.location}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <Badge variant="outline" className="text-[10px] ml-2 shrink-0">#{job.id}</Badge>
                                         </div>
-                                        <div className={`ml-auto font-medium text-sm ${job.color}`}>{job.match}</div>
+                                    ))
+                                ) : (
+                                    <div className="text-center py-4 text-sm text-muted-foreground">
+                                        No jobs ingested yet. Run the pipeline first.
                                     </div>
-                                ))}
+                                )}
 
-                                <Button variant="outline" className="w-full text-xs h-8">
-                                    View All Recommendations <MoveRight className="ml-2 h-3 w-3" />
+                                <Button variant="outline" className="w-full text-xs h-8" asChild>
+                                    <Link to="/ingestion">
+                                        View All Jobs <MoveRight className="ml-2 h-3 w-3" />
+                                    </Link>
                                 </Button>
                             </div>
                         </CardContent>
@@ -125,3 +171,4 @@ export default function DashboardPage() {
         </motion.div>
     );
 }
+
