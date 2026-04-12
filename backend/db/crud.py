@@ -60,6 +60,7 @@ def create_chat_message(db: Session, message: chat_schema.ChatMessageCreate, use
     db_message = user_model.ChatMessage(
         message=message.message,
         user_id=user_id,
+        session_id=message.session_id,
         is_from_user=is_from_user
     )
     db.add(db_message)
@@ -72,9 +73,16 @@ def get_chat_message_by_id(db: Session, message_id: int) -> user_model.ChatMessa
     return db.query(user_model.ChatMessage).filter(user_model.ChatMessage.id == message_id).first()
 
 
-def get_chat_history(db: Session, user_id: int, limit: int = 50) -> list[user_model.ChatMessage]:
-    """Fetches the chat history for a user, ordered by creation time."""
-    return db.query(user_model.ChatMessage).filter(user_model.ChatMessage.user_id == user_id).order_by(user_model.ChatMessage.id.desc()).limit(limit).all()[::-1]
+def get_chat_history(db: Session, user_id: int, session_id: str | None = None, limit: int = 50) -> list[user_model.ChatMessage]:
+    """Fetches the chat history for a user, grouped by session if provided."""
+    query = db.query(user_model.ChatMessage).filter(user_model.ChatMessage.user_id == user_id)
+    if session_id:
+        query = query.filter(user_model.ChatMessage.session_id == session_id)
+    return query.order_by(user_model.ChatMessage.id.desc()).limit(limit).all()[::-1]
+
+def get_all_user_chats(db: Session, user_id: int) -> list[user_model.ChatMessage]:
+    """Fetches all chats for a user to group by sessions."""
+    return db.query(user_model.ChatMessage).filter(user_model.ChatMessage.user_id == user_id).order_by(user_model.ChatMessage.id.asc()).all()
 
 # --- Job CRUD ---
 

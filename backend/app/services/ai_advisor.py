@@ -59,7 +59,9 @@ def generate_augmented_prompt(user_profile: user_model.Profile, relevant_jobs: l
 
     prompt += (
         "Based on the user's profile AND the live job data, provide insightful recommendations. "
-        "If you mention a job, refer to the data. Be encouraging and clear."
+        "CRITICAL INSTRUCTION: For every job you recommend, you MUST explicitly explain 'Why this role matches you' "
+        "by drawing direct connections between the core requirements of the job data and the user's specific skills strings, "
+        "interests, and aspirations. If you mention a job, refer to the data. Be encouraging and clear."
     )
     return prompt
 

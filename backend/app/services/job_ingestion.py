@@ -54,7 +54,9 @@ def ingest_jobs_to_db(db: Session):
     """
     jobs_data = fetch_mock_jobs()
     for job_data in jobs_data:
+        text_to_embed = f"{job_data.get('title', '')} {job_data.get('company', '')} {job_data.get('description', '')} {' '.join(job_data.get('skills', []))}"
+        if embedding_model:
+            job_data['description_embedding'] = embedding_model.encode(text_to_embed).tolist()
         job_in = job_schema.JobCreate(**job_data)
-        # Here you might add logic to avoid duplicates
         crud.create_job(db=db, job=job_in)
     print(f"--- Ingested {len(jobs_data)} jobs into the database ---")

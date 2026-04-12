@@ -5,6 +5,9 @@ from backend.app.schemas import chat, translation as translation_schema
 from backend.db import crud
 from backend.models.user import User
 from backend.app.services import ai_advisor, translation_service
+from itertools import groupby
+import uuid
+
 router = APIRouter()
 
 @router.post("/", response_model=chat.ChatResponse)
@@ -13,11 +16,11 @@ def handle_chat_message(
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_active_user)
 ):
-    """
-    Handle an incoming chat message from a user.
-    """
+    session_id = chat_in.session_id or str(uuid.uuid4())
+    chat_in.session_id = session_id
+    
     user_profile = crud.get_profile_by_user_id(db, user_id=current_user.id)
-    chat_history = crud.get_chat_history(db, user_id=current_user.id)
+    chat_history = crud.get_chat_history(db, user_id=current_user.id, session_id=session_id)
     crud.create_chat_message(db, message=chat_in, user_id=current_user.id, is_from_user=True)
 
     try:
@@ -30,9 +33,9 @@ def handle_chat_message(
     except RuntimeError as e:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e))
 
-    ai_message_schema = chat.ChatMessageCreate(message=ai_response_text)
+    ai_message_schema = chat.ChatMessageCreate(message=ai_response_text, session_id=session_id)
     db_ai_message = crud.create_chat_message(db, message=ai_message_schema, user_id=current_user.id, is_from_user=False)
-    return chat.ChatResponse(response=ai_response_text, message_id=db_ai_message.id)
+    return chat.ChatResponse(response=ai_response_text, message_id=db_ai_message.id, session_id=session_id)
 
 
 @router.post("/translate", response_model=translation_schema.MultilingualChatResponse)
@@ -41,20 +44,16 @@ def handle_multilingual_chat(
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_active_user)
 ):
-    """
-    Handle a multilingual chat message.
-    1. Translates user message to English.
-    2. Sends English message to AI.
-    3. Translates AI response back to user's language.
-    """
+    session_id = chat_in.session_id or str(uuid.uuid4())
+    
     translation_result = translation_service.translate_text(chat_in.message, target_language="en")
     english_message_text = translation_result.get("translatedText", chat_in.message)
     detected_language = translation_result.get("detectedSourceLanguage", "en")
 
     user_profile = crud.get_profile_by_user_id(db, user_id=current_user.id)
-    chat_history = crud.get_chat_history(db, user_id=current_user.id)
+    chat_history = crud.get_chat_history(db, user_id=current_user.id, session_id=session_id)
 
-    user_message_schema = chat.ChatMessageCreate(message=english_message_text)
+    user_message_schema = chat.ChatMessageCreate(message=english_message_text, session_id=session_id)
     crud.create_chat_message(db, message=user_message_schema, user_id=current_user.id, is_from_user=True)
 
     try:
@@ -66,7 +65,8 @@ def handle_multilingual_chat(
         )
     except RuntimeError as e:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e))
-    ai_message_schema = chat.ChatMessageCreate(message=ai_response_text)
+        
+    ai_message_schema = chat.ChatMessageCreate(message=ai_response_text, session_id=session_id)
     db_ai_message = crud.create_chat_message(db, message=ai_message_schema, user_id=current_user.id, is_from_user=False)
 
     if detected_language != "en":
@@ -79,5 +79,25 @@ def handle_multilingual_chat(
         response=final_response,
         original_language=detected_language,
         english_response=ai_response_text,
-        message_id=db_ai_message.id
+        message_id=db_ai_message.id,
+        session_id=session_id
     )
+
+@router.get("/history")
+def get_history(
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user)
+):
+    chats = crud.get_all_user_chats(db, user_id=current_user.id)
+    sessions = {}
+    for chat_msg in chats:
+        sid = chat_msg.session_id or "default"
+        if sid not in sessions:
+            sessions[sid] = []
+        sessions[sid].append({
+            "id": chat_msg.id,
+            "message": chat_msg.message,
+            "is_from_user": chat_msg.is_from_user,
+            "timestamp": chat_msg.timestamp
+        })
+    return {"sessions": sessions}

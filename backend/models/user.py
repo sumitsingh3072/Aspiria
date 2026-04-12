@@ -44,6 +44,7 @@ class ChatMessage(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    session_id = Column(String, index=True, nullable=True)
     message = Column(Text, nullable=False)
     is_from_user = Column(Boolean, default=True)
     owner = relationship("User", back_populates="chat_messages")

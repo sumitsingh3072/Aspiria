@@ -6,12 +6,13 @@ class ChatMessageBase(BaseModel):
 
 class ChatMessageCreate(ChatMessageBase):
     """Schema for creating a new message (from the user)."""
-    pass
+    session_id: str | None = None
 
 class ChatMessageRead(ChatMessageBase):
     """Schema for reading/returning a chat message."""
     id: int
     is_from_user: bool
+    session_id: str | None
 
     class Config:
         from_attributes = True
@@ -20,3 +21,4 @@ class ChatResponse(BaseModel):
     """Schema for the AI's response."""
     response: str
     message_id: int
+    session_id: str

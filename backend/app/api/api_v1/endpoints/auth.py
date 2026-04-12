@@ -22,7 +22,7 @@ oauth.register(
     name='google',
     client_id=settings.GOOGLE_CLIENT_ID,
     client_secret=settings.GOOGLE_CLIENT_SECRET,
-    server_metadata_url='[https://accounts.google.com/.well-known/openid-configuration](https://accounts.google.com/.well-known/openid-configuration)',
+    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
     client_kwargs={
         'scope': 'openid email profile'
     }
@@ -40,7 +40,9 @@ async def login_google(request: Request):
     
     return await client.authorize_redirect(request, redirect_uri)
 
-@router.get("/google/callback", response_model=Token)
+from fastapi.responses import RedirectResponse
+
+@router.get("/google/callback")
 async def auth_google(request: Request, db: Session = Depends(deps.get_db)):
     """
     Callback for Google OAuth. 
@@ -83,7 +85,7 @@ async def auth_google(request: Request, db: Session = Depends(deps.get_db)):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
 
     access_token = security.create_access_token(data={"sub": user.email})
-    return {"access_token": access_token, "token_type": "bearer"}
+    return RedirectResponse(f"{settings.FRONTEND_URL}/auth/callback?token={access_token}")
 
 
 @router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
