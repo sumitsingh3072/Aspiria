@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     GOOGLE_REDIRECT_URI: Optional[str] = "http://localhost:8000/api/v1/auth/google/callback"
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
+    # SerpAPI (Google Jobs)
+    SERP_API_KEY: Optional[str] = None
+
 
     # Email
     MAIL_USERNAME: str

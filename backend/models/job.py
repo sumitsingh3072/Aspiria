@@ -14,3 +14,7 @@ class Job(Base):
     description = Column(String)
     skills = Column(JSON) 
     description_embedding = Column(Vector(EMBEDDING_DIM), nullable=True)
+    source = Column(String, nullable=True)         # e.g. "ZipRecruiter", "LinkedIn"
+    apply_options = Column(JSON, nullable=True)     # [{title: "Indeed", link: "..."}, ...]
+    schedule_type = Column(String, nullable=True)   # "Full-time", "Part-time", "Contract"
+    posted_at = Column(String, nullable=True)       # "3 days ago"

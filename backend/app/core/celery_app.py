@@ -6,7 +6,7 @@ celery_app = Celery(
     "tasks",
     broker=settings.CELERY_BROKER_URL,
     backend=settings.CELERY_RESULT_BACKEND,
-    include=["backend.app.tasks.job_task"] # We'll create this module next
+    include=["backend.app.tasks.job_task"]
 )
 
 celery_app.conf.update(
@@ -15,6 +15,12 @@ celery_app.conf.update(
     result_serializer="json",
     timezone="UTC",
     enable_utc=True,
+    beat_schedule={
+        "hourly-auto-refresh": {
+            "task": "backend.app.tasks.job_task.hourly_auto_refresh_task",
+            "schedule": 3600.0,  # every 60 minutes
+        },
+    },
 )
 
 if __name__ == "__main__":

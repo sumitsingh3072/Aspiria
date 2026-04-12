@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import api from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +47,17 @@ const item = {
 };
 
 export default function DashboardPage() {
+    // Auto-trigger pipeline on login (runs once per mount)
+    const triggeredRef = useRef(false);
+    useEffect(() => {
+        if (!triggeredRef.current) {
+            triggeredRef.current = true;
+            api.post("/ingestion/auto-trigger").catch(() => {
+                // Silently fail — profile might be incomplete or cooldown active
+            });
+        }
+    }, []);
+
     const { data: countData } = useQuery<{ count: number }>({
         queryKey: ["jobs-count"],
         queryFn: async () => {

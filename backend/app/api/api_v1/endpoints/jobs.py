@@ -15,6 +15,10 @@ class JobRead(BaseModel):
     location: Optional[str] = None
     description: Optional[str] = None
     skills: Optional[list] = None
+    source: Optional[str] = None
+    apply_link: Optional[str] = None
+    schedule_type: Optional[str] = None
+    posted_at: Optional[str] = None
 
     class Config:
         from_attributes = True

@@ -1,5 +1,9 @@
 import { useState } from "react";
-import { Database, Play, CheckCircle2, AlertCircle, Search, MapPin, Building2, Loader2, Briefcase } from "lucide-react";
+import {
+    Database, Zap, Clock, RefreshCw, Search, MapPin, Building2,
+    Loader2, Briefcase, Crown, CheckCircle2, ExternalLink,
+    ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Tag
+} from "lucide-react";
 import { toast } from "sonner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -8,13 +12,14 @@ import {
     Card,
     CardContent,
     CardDescription,
-    CardFooter,
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { AnimatePresence, motion } from "framer-motion";
 import api from "@/lib/api";
 
 interface Job {
@@ -24,37 +29,41 @@ interface Job {
     location: string | null;
     description: string | null;
     skills: string[] | null;
+    source: string | null;
+    apply_link: string | null;
+    schedule_type: string | null;
+    posted_at: string | null;
 }
 
+interface IngestionStatus {
+    last_pipeline_run: string | null;
+    auto_refresh_enabled: boolean;
+    can_trigger: boolean;
+    cooldown_remaining_minutes: number | null;
+    cooldown_total_minutes: number;
+}
+
+const JOBS_PER_PAGE = 10;
+
 export default function IngestionPage() {
-    const [taskId, setTaskId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
+    const [currentPage, setCurrentPage] = useState(1);
+    const [expandedJobId, setExpandedJobId] = useState<number | null>(null);
     const queryClient = useQueryClient();
 
-    const mutation = useMutation({
-        mutationFn: async () => {
-            const response = await api.post("/ingestion/jobs");
-            return response.data;
+    const { data: ingestionStatus, isLoading: statusLoading } = useQuery<IngestionStatus>({
+        queryKey: ["ingestion-status"],
+        queryFn: async () => {
+            const { data } = await api.get("/ingestion/status");
+            return data;
         },
-        onSuccess: (data) => {
-            setTaskId(data.task_id);
-            toast.success("Ingestion started successfully! Jobs will appear shortly.");
-            // Refetch jobs after a delay to give Celery time to finish
-            setTimeout(() => {
-                queryClient.invalidateQueries({ queryKey: ["ingested-jobs"] });
-                queryClient.invalidateQueries({ queryKey: ["jobs-count"] });
-            }, 5000);
-        },
-        onError: (error) => {
-            toast.error("Failed to start ingestion.");
-            console.error(error);
-        },
+        refetchInterval: 30000,
     });
 
     const { data: jobs, isLoading: jobsLoading } = useQuery<Job[]>({
         queryKey: ["ingested-jobs", searchTerm],
         queryFn: async () => {
-            const params: Record<string, string> = {};
+            const params: Record<string, string> = { limit: "200" };
             if (searchTerm) params.search = searchTerm;
             const { data } = await api.get("/jobs/", { params });
             return data;
@@ -69,111 +78,162 @@ export default function IngestionPage() {
         },
     });
 
+    const toggleAutoRefresh = useMutation({
+        mutationFn: async () => {
+            const { data } = await api.post("/ingestion/auto-refresh/toggle");
+            return data;
+        },
+        onSuccess: (data) => {
+            toast.success(data.message);
+            queryClient.invalidateQueries({ queryKey: ["ingestion-status"] });
+        },
+        onError: () => {
+            toast.error("Failed to toggle auto-refresh.");
+        },
+    });
+
+    const formatLastRun = (iso: string | null | undefined) => {
+        if (!iso) return "Never";
+        return new Date(iso).toLocaleString();
+    };
+
+    // Pagination logic
+    const totalJobs = jobs?.length ?? 0;
+    const totalPages = Math.max(1, Math.ceil(totalJobs / JOBS_PER_PAGE));
+    const paginatedJobs = jobs?.slice(
+        (currentPage - 1) * JOBS_PER_PAGE,
+        currentPage * JOBS_PER_PAGE
+    ) ?? [];
+
+    // Reset to page 1 when search changes
+    const handleSearch = (val: string) => {
+        setSearchTerm(val);
+        setCurrentPage(1);
+        setExpandedJobId(null);
+    };
+
     return (
         <div className="flex flex-col gap-6">
             <div>
-                <h2 className="text-3xl font-bold tracking-tight">Data Ingestion</h2>
+                <h2 className="text-3xl font-bold tracking-tight">Job Market Data</h2>
                 <p className="text-muted-foreground">
-                    Manage and trigger data ingestion pipelines.
+                    Live job listings automatically fetched from Google Jobs.
                 </p>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2">
+            {/* Stats Row */}
+            <div className="grid gap-6 md:grid-cols-3">
                 <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Database className="h-5 w-5" />
-                            Job Data Pipeline
+                    <CardHeader className="pb-2">
+                        <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                            <Briefcase className="h-4 w-4 text-muted-foreground" />
+                            Total Jobs
                         </CardTitle>
-                        <CardDescription>
-                            Fetch and process latest job listings from external sources.
-                        </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-sm text-muted-foreground space-y-2">
-                            <p>
-                                This pipeline connects to configured job boards and APIs to
-                                retrieve the latest job market data.
-                            </p>
-                            <ul className="list-disc list-inside space-y-1 ml-2">
-                                <li>Fetches raw data</li>
-                                <li>Normalizes fields</li>
-                                <li>Generates vector embeddings</li>
-                                <li>Updates search index</li>
-                            </ul>
-                        </div>
-                        {taskId && (
-                            <Alert className="mt-4 border-green-200 bg-green-50 dark:bg-green-900/10 dark:border-green-900">
-                                <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
-                                <AlertTitle className="text-green-800 dark:text-green-300">
-                                    Ingestion Started
-                                </AlertTitle>
-                                <AlertDescription className="text-green-700 dark:text-green-400">
-                                    Task ID: <span className="font-mono">{taskId}</span>
-                                </AlertDescription>
-                            </Alert>
-                        )}
+                        <div className="text-4xl font-bold text-primary">{countData?.count ?? "—"}</div>
+                        <p className="text-xs text-muted-foreground mt-1">In database</p>
                     </CardContent>
-                    <CardFooter>
-                        <Button
-                            onClick={() => mutation.mutate()}
-                            disabled={mutation.isPending}
-                            className="w-full sm:w-auto"
-                        >
-                            <Play className="mr-2 h-4 w-4" />
-                            {mutation.isPending ? "Starting..." : "Run Pipeline Now"}
-                        </Button>
-                    </CardFooter>
                 </Card>
 
                 <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Briefcase className="h-5 w-5" />
-                            Ingestion Stats
+                    <CardHeader className="pb-2">
+                        <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                            <Clock className="h-4 w-4 text-muted-foreground" />
+                            Last Pipeline Run
                         </CardTitle>
-                        <CardDescription>
-                            Overview of your job data warehouse.
-                        </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="flex flex-col items-center justify-center py-6">
-                            <span className="text-5xl font-bold text-primary">{countData?.count ?? "—"}</span>
-                            <span className="text-sm text-muted-foreground mt-2">Total Jobs Ingested</span>
+                        <div className="text-sm font-semibold">
+                            {statusLoading ? "..." : formatLastRun(ingestionStatus?.last_pipeline_run)}
+                        </div>
+                        {ingestionStatus?.cooldown_remaining_minutes != null && ingestionStatus.cooldown_remaining_minutes > 0 ? (
+                            <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                                Next run available in {ingestionStatus.cooldown_remaining_minutes} min
+                                <span className="text-muted-foreground ml-1">
+                                    (of {ingestionStatus.cooldown_total_minutes} min cycle)
+                                </span>
+                            </p>
+                        ) : ingestionStatus?.can_trigger ? (
+                            <p className="text-xs text-green-600 dark:text-green-400 mt-1 flex items-center gap-1">
+                                <CheckCircle2 className="h-3 w-3" /> Ready to refresh
+                            </p>
+                        ) : null}
+                    </CardContent>
+                </Card>
+
+                <Card className="border-primary/20">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                            <Crown className="h-4 w-4 text-yellow-500" />
+                            Auto-Refresh (Premium)
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-medium">
+                                    {ingestionStatus?.auto_refresh_enabled ? "Active" : "Disabled"}
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                    {ingestionStatus?.auto_refresh_enabled
+                                        ? "Refreshing every 60 min"
+                                        : "Default: every 6 hours"}
+                                </p>
+                            </div>
+                            <Switch
+                                checked={ingestionStatus?.auto_refresh_enabled ?? false}
+                                onCheckedChange={() => toggleAutoRefresh.mutate()}
+                                disabled={toggleAutoRefresh.isPending}
+                            />
                         </div>
                     </CardContent>
-                    <CardFooter>
-                        <Button
-                            variant="outline"
-                            className="w-full sm:w-auto"
-                            onClick={() => {
-                                queryClient.invalidateQueries({ queryKey: ["ingested-jobs"] });
-                                queryClient.invalidateQueries({ queryKey: ["jobs-count"] });
-                                toast.info("Refreshed job data.");
-                            }}
-                        >
-                            Refresh Data
-                        </Button>
-                    </CardFooter>
                 </Card>
             </div>
 
-            {/* Ingested Jobs Table */}
+            <Alert className="border-blue-200 bg-blue-50/50 dark:bg-blue-950/20 dark:border-blue-900/50">
+                <Zap className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                <AlertTitle className="text-blue-800 dark:text-blue-300">Smart Ingestion</AlertTitle>
+                <AlertDescription className="text-blue-700 dark:text-blue-400 text-sm">
+                    Jobs are automatically refreshed when you log in (if your profile is complete).
+                    Enable <strong>Auto-Refresh</strong> above to reduce the cooldown from 6 hours to 60 minutes.
+                </AlertDescription>
+            </Alert>
+
+            {/* Job Listings */}
             <Card>
                 <CardHeader>
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div>
-                            <CardTitle>Ingested Job Listings</CardTitle>
-                            <CardDescription>Browse all jobs currently stored in the database.</CardDescription>
+                            <CardTitle>Live Job Listings</CardTitle>
+                            <CardDescription>
+                                Showing {paginatedJobs.length} of {totalJobs} jobs
+                                {searchTerm && ` matching "${searchTerm}"`}
+                                {" · "}Page {currentPage} of {totalPages}
+                            </CardDescription>
                         </div>
-                        <div className="relative w-full sm:w-72">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                placeholder="Search by title or company..."
-                                className="pl-9"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
+                        <div className="flex gap-2 items-center">
+                            <div className="relative w-full sm:w-72">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    placeholder="Search by title or company..."
+                                    className="pl-9"
+                                    value={searchTerm}
+                                    onChange={(e) => handleSearch(e.target.value)}
+                                />
+                            </div>
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => {
+                                    queryClient.invalidateQueries({ queryKey: ["ingested-jobs"] });
+                                    queryClient.invalidateQueries({ queryKey: ["jobs-count"] });
+                                    queryClient.invalidateQueries({ queryKey: ["ingestion-status"] });
+                                    toast.info("Refreshed.");
+                                }}
+                            >
+                                <RefreshCw className="h-4 w-4" />
+                            </Button>
                         </div>
                     </div>
                 </CardHeader>
@@ -182,60 +242,192 @@ export default function IngestionPage() {
                         <div className="py-12 flex justify-center">
                             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                         </div>
-                    ) : jobs && jobs.length > 0 ? (
+                    ) : paginatedJobs.length > 0 ? (
                         <div className="space-y-3">
-                            {jobs.map((job) => (
-                                <div
-                                    key={job.id}
-                                    className="flex flex-col gap-2 p-4 rounded-lg border bg-card hover:border-primary/40 transition-colors"
-                                >
-                                    <div className="flex items-start justify-between gap-4">
-                                        <div className="space-y-1 min-w-0">
-                                            <h4 className="font-semibold text-sm truncate">{job.title}</h4>
-                                            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                                                {job.company && (
-                                                    <span className="flex items-center gap-1">
-                                                        <Building2 className="h-3 w-3" /> {job.company}
-                                                    </span>
+                            {paginatedJobs.map((job) => {
+                                const isExpanded = expandedJobId === job.id;
+                                return (
+                                    <div
+                                        key={job.id}
+                                        className={`rounded-lg border bg-card transition-colors cursor-pointer ${
+                                            isExpanded
+                                                ? "border-primary/50 shadow-md"
+                                                : "hover:border-primary/30"
+                                        }`}
+                                        onClick={() => setExpandedJobId(isExpanded ? null : job.id)}
+                                    >
+                                        {/* Collapsed Header */}
+                                        <div className="flex items-center justify-between p-4 gap-4">
+                                            <div className="space-y-1 min-w-0 flex-1">
+                                                <div className="flex items-center gap-2">
+                                                    <h4 className="font-semibold text-sm truncate">{job.title}</h4>
+                                                    {job.schedule_type && (
+                                                        <Badge variant="secondary" className="text-[10px] shrink-0">
+                                                            {job.schedule_type}
+                                                        </Badge>
+                                                    )}
+                                                </div>
+                                                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                                    {job.company && (
+                                                        <span className="flex items-center gap-1">
+                                                            <Building2 className="h-3 w-3" /> {job.company}
+                                                        </span>
+                                                    )}
+                                                    {job.location && (
+                                                        <span className="flex items-center gap-1">
+                                                            <MapPin className="h-3 w-3" /> {job.location}
+                                                        </span>
+                                                    )}
+                                                    {job.posted_at && (
+                                                        <span className="text-muted-foreground/60">
+                                                            {job.posted_at}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2 shrink-0">
+                                                {job.source && (
+                                                    <Badge variant="outline" className="text-[10px]">
+                                                        {job.source}
+                                                    </Badge>
                                                 )}
-                                                {job.location && (
-                                                    <span className="flex items-center gap-1">
-                                                        <MapPin className="h-3 w-3" /> {job.location}
-                                                    </span>
+                                                {isExpanded ? (
+                                                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                                                ) : (
+                                                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
                                                 )}
                                             </div>
                                         </div>
-                                        <Badge variant="outline" className="text-[10px] shrink-0">
-                                            ID: {job.id}
-                                        </Badge>
-                                    </div>
-                                    {job.description && (
-                                        <p className="text-xs text-muted-foreground line-clamp-2">
-                                            {job.description}
-                                        </p>
-                                    )}
-                                    {job.skills && job.skills.length > 0 && (
-                                        <div className="flex flex-wrap gap-1 mt-1">
-                                            {job.skills.slice(0, 6).map((skill, i) => (
-                                                <Badge key={i} variant="secondary" className="text-[10px] px-1.5 py-0">
-                                                    {skill}
-                                                </Badge>
-                                            ))}
-                                            {job.skills.length > 6 && (
-                                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                                                    +{job.skills.length - 6} more
-                                                </Badge>
+
+                                        {/* Expanded Details */}
+                                        <AnimatePresence>
+                                            {isExpanded && (
+                                                <motion.div
+                                                    initial={{ height: 0, opacity: 0 }}
+                                                    animate={{ height: "auto", opacity: 1 }}
+                                                    exit={{ height: 0, opacity: 0 }}
+                                                    transition={{ duration: 0.2 }}
+                                                    className="overflow-hidden"
+                                                >
+                                                    <div className="px-4 pb-4 pt-0 border-t space-y-4">
+                                                        {/* Description */}
+                                                        {job.description && (
+                                                            <div className="mt-4">
+                                                                <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                                                                    Description
+                                                                </h5>
+                                                                <p className="text-sm text-foreground/80 whitespace-pre-line leading-relaxed max-h-64 overflow-y-auto">
+                                                                    {job.description}
+                                                                </p>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Skills */}
+                                                        {job.skills && job.skills.length > 0 && (
+                                                            <div>
+                                                                <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
+                                                                    <Tag className="h-3 w-3" /> Qualifications
+                                                                </h5>
+                                                                <div className="flex flex-wrap gap-1.5">
+                                                                    {job.skills.map((skill, i) => (
+                                                                        <Badge key={i} variant="secondary" className="text-xs px-2 py-0.5">
+                                                                            {skill}
+                                                                        </Badge>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Meta + Apply */}
+                                                        <div className="flex items-center justify-between pt-2">
+                                                            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                                                {job.source && <span>Source: {job.source}</span>}
+                                                                <span>ID: {job.id}</span>
+                                                            </div>
+                                                            {job.apply_link && (
+                                                                <Button
+                                                                    size="sm"
+                                                                    className="text-xs h-8"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        window.open(job.apply_link!, "_blank");
+                                                                    }}
+                                                                >
+                                                                    <ExternalLink className="h-3 w-3 mr-1.5" />
+                                                                    Apply Now
+                                                                </Button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </motion.div>
                                             )}
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
+                                        </AnimatePresence>
+                                    </div>
+                                );
+                            })}
                         </div>
                     ) : (
                         <div className="py-12 text-center border-2 border-dashed rounded-xl border-zinc-200 dark:border-zinc-800">
                             <Database className="h-8 w-8 mx-auto text-zinc-300 dark:text-zinc-600 mb-3" />
-                            <p className="text-zinc-500 font-medium">No jobs ingested yet</p>
-                            <p className="text-xs text-zinc-400 mt-1">Click "Run Pipeline Now" above to fetch job data.</p>
+                            <p className="text-zinc-500 font-medium">No jobs found</p>
+                            <p className="text-xs text-zinc-400 mt-1">
+                                {searchTerm
+                                    ? "Try a different search term."
+                                    : "Jobs will appear automatically when you log in with a complete profile."}
+                            </p>
+                        </div>
+                    )}
+
+                    {/* Pagination Controls */}
+                    {totalPages > 1 && (
+                        <div className="flex items-center justify-between mt-6 pt-4 border-t">
+                            <p className="text-xs text-muted-foreground">
+                                Showing {(currentPage - 1) * JOBS_PER_PAGE + 1}–
+                                {Math.min(currentPage * JOBS_PER_PAGE, totalJobs)} of {totalJobs}
+                            </p>
+                            <div className="flex items-center gap-1">
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    disabled={currentPage <= 1}
+                                    onClick={() => { setCurrentPage(p => p - 1); setExpandedJobId(null); }}
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                </Button>
+                                {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+                                    let page: number;
+                                    if (totalPages <= 7) {
+                                        page = i + 1;
+                                    } else if (currentPage <= 4) {
+                                        page = i + 1;
+                                    } else if (currentPage >= totalPages - 3) {
+                                        page = totalPages - 6 + i;
+                                    } else {
+                                        page = currentPage - 3 + i;
+                                    }
+                                    return (
+                                        <Button
+                                            key={page}
+                                            variant={page === currentPage ? "default" : "outline"}
+                                            size="icon"
+                                            className="h-8 w-8 text-xs"
+                                            onClick={() => { setCurrentPage(page); setExpandedJobId(null); }}
+                                        >
+                                            {page}
+                                        </Button>
+                                    );
+                                })}
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    disabled={currentPage >= totalPages}
+                                    onClick={() => { setCurrentPage(p => p + 1); setExpandedJobId(null); }}
+                                >
+                                    <ChevronRight className="h-4 w-4" />
+                                </Button>
+                            </div>
                         </div>
                     )}
                 </CardContent>
