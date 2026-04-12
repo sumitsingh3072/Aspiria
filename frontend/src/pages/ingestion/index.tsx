@@ -45,11 +45,50 @@ interface IngestionStatus {
 
 const JOBS_PER_PAGE = 10;
 
+import { useEffect, useRef } from "react";
+
 export default function IngestionPage() {
     const [searchTerm, setSearchTerm] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const [expandedJobId, setExpandedJobId] = useState<number | null>(null);
     const queryClient = useQueryClient();
+
+    // Auto-trigger pipeline on page load (same as dashboard)
+    const triggeredRef = useRef(false);
+    useEffect(() => {
+        if (!triggeredRef.current) {
+            triggeredRef.current = true;
+            api.post("/ingestion/auto-trigger").then((res) => {
+                if (res.data.triggered) {
+                    toast.success("Pipeline triggered! Jobs will appear shortly.");
+                    // Refresh data after a delay for Celery to finish
+                    setTimeout(() => {
+                        queryClient.invalidateQueries({ queryKey: ["ingested-jobs"] });
+                        queryClient.invalidateQueries({ queryKey: ["jobs-count"] });
+                        queryClient.invalidateQueries({ queryKey: ["ingestion-status"] });
+                    }, 15000);
+                }
+            }).catch(() => {});
+        }
+    }, []);
+
+    const manualTrigger = useMutation({
+        mutationFn: async () => {
+            const { data } = await api.post("/ingestion/force-trigger");
+            return data;
+        },
+        onSuccess: (data) => {
+            toast.success("Pipeline started! Jobs will appear in ~15 seconds.");
+            setTimeout(() => {
+                queryClient.invalidateQueries({ queryKey: ["ingested-jobs"] });
+                queryClient.invalidateQueries({ queryKey: ["jobs-count"] });
+                queryClient.invalidateQueries({ queryKey: ["ingestion-status"] });
+            }, 15000);
+        },
+        onError: () => {
+            toast.error("Failed to trigger pipeline.");
+        },
+    });
 
     const { data: ingestionStatus, isLoading: statusLoading } = useQuery<IngestionStatus>({
         queryKey: ["ingestion-status"],
@@ -155,9 +194,21 @@ export default function IngestionPage() {
                                 </span>
                             </p>
                         ) : ingestionStatus?.can_trigger ? (
-                            <p className="text-xs text-green-600 dark:text-green-400 mt-1 flex items-center gap-1">
-                                <CheckCircle2 className="h-3 w-3" /> Ready to refresh
-                            </p>
+                            <div className="flex items-center gap-2 mt-2">
+                                <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+                                    <CheckCircle2 className="h-3 w-3" /> Ready
+                                </p>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-xs h-7 px-3"
+                                    disabled={manualTrigger.isPending}
+                                    onClick={() => manualTrigger.mutate()}
+                                >
+                                    <RefreshCw className={`h-3 w-3 mr-1 ${manualTrigger.isPending ? "animate-spin" : ""}`} />
+                                    {manualTrigger.isPending ? "Running..." : "Refresh Now"}
+                                </Button>
+                            </div>
                         ) : null}
                     </CardContent>
                 </Card>

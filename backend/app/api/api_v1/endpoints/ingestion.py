@@ -148,3 +148,18 @@ def trigger_job_ingestion_manual(
     db.commit()
 
     return {"message": "Job ingestion started.", "task_id": task_result.id}
+
+
+@router.post("/force-trigger", status_code=status.HTTP_202_ACCEPTED)
+def force_trigger_ingestion(
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+):
+    """
+    Force-trigger pipeline, ignoring cooldown. For admin/testing use.
+    """
+    prefs = _get_or_create_prefs(db, current_user.id)
+    task_result = ingest_jobs_task.delay()
+    prefs.last_pipeline_run = datetime.now(timezone.utc)
+    db.commit()
+    return {"message": "Force-triggered job ingestion.", "task_id": task_result.id}
