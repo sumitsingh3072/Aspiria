@@ -16,7 +16,7 @@ class JobRead(BaseModel):
     description: Optional[str] = None
     skills: Optional[list] = None
     source: Optional[str] = None
-    apply_link: Optional[str] = None
+    apply_options: Optional[list] = None
     schedule_type: Optional[str] = None
     posted_at: Optional[str] = None
 

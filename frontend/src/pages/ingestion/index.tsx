@@ -30,7 +30,7 @@ interface Job {
     description: string | null;
     skills: string[] | null;
     source: string | null;
-    apply_link: string | null;
+    apply_options: { title: string; link: string }[] | null;
     schedule_type: string | null;
     posted_at: string | null;
 }
@@ -338,24 +338,35 @@ export default function IngestionPage() {
                                                             </div>
                                                         )}
 
-                                                        {/* Meta + Apply */}
-                                                        <div className="flex items-center justify-between pt-2">
+                                                        {/* Meta + Apply Links */}
+                                                        <div className="pt-3 border-t space-y-3">
                                                             <div className="flex items-center gap-3 text-xs text-muted-foreground">
                                                                 {job.source && <span>Source: {job.source}</span>}
                                                                 <span>ID: {job.id}</span>
                                                             </div>
-                                                            {job.apply_link && (
-                                                                <Button
-                                                                    size="sm"
-                                                                    className="text-xs h-8"
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        window.open(job.apply_link!, "_blank");
-                                                                    }}
-                                                                >
-                                                                    <ExternalLink className="h-3 w-3 mr-1.5" />
-                                                                    Apply Now
-                                                                </Button>
+                                                            {job.apply_options && job.apply_options.length > 0 && (
+                                                                <div>
+                                                                    <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
+                                                                        <ExternalLink className="h-3 w-3" /> Apply via
+                                                                    </h5>
+                                                                    <div className="flex flex-wrap gap-2">
+                                                                        {job.apply_options.map((opt, i) => (
+                                                                            <Button
+                                                                                key={i}
+                                                                                size="sm"
+                                                                                variant={i === 0 ? "default" : "outline"}
+                                                                                className="text-xs h-8"
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    window.open(opt.link, "_blank");
+                                                                                }}
+                                                                            >
+                                                                                <ExternalLink className="h-3 w-3 mr-1.5" />
+                                                                                {opt.title}
+                                                                            </Button>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
                                                             )}
                                                         </div>
                                                     </div>

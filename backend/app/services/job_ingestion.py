@@ -84,9 +84,12 @@ def fetch_live_jobs(query: str, location: str = "India") -> list[dict]:
         if len(description) > 3000:
             description = description[:2997] + "..."
 
-        # Extract apply link (first option if available)
-        apply_options = job.get("apply_options", [])
-        apply_link = apply_options[0].get("link") if apply_options else None
+        # Extract all apply options
+        raw_apply = job.get("apply_options", [])
+        apply_options = [
+            {"title": opt.get("title", "Apply"), "link": opt.get("link")}
+            for opt in raw_apply if opt.get("link")
+        ]
 
         # Extract metadata from detected_extensions
         detected = job.get("detected_extensions", {})
@@ -98,7 +101,7 @@ def fetch_live_jobs(query: str, location: str = "India") -> list[dict]:
             "description": description,
             "skills": skills,
             "source": job.get("via"),
-            "apply_link": apply_link,
+            "apply_options": apply_options if apply_options else None,
             "schedule_type": detected.get("schedule_type"),
             "posted_at": detected.get("posted_at"),
         })
