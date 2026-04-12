@@ -19,8 +19,7 @@ try:
     from backend.app.core.config import settings
     from backend.db.session import Base
 
-    from backend.models import user, job
-    from backend.app.models import job_alert_preferences
+    from backend.models import user, job, backend_notification, job_alert_preferences
 except ImportError as e:
     print(f"Error: Could not import models. Make sure you are running 'alembic' from the 'backend' directory.")
     print(f"Details: {e}")
