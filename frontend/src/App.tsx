@@ -7,6 +7,7 @@ import { queryClient } from '@/lib/query-client'
 
 import LoginPage from '@/pages/auth/login'
 import RegisterPage from '@/pages/auth/register'
+import AuthCallback from '@/pages/auth/callback'
 import LandingPage from '@/pages/landing/index'
 import DashboardLayout from '@/components/layout/dashboard-layout'
 import DashboardPage from '@/pages/dashboard/index'
@@ -55,6 +56,7 @@ function App() {
               {/* Auth Routes */}
               <Route path="/auth/login" element={<LoginPage />} />
               <Route path="/auth/register" element={<RegisterPage />} />
+              <Route path="/auth/callback" element={<AuthCallback />} />
 
               {/* App Routes (Protected w/ Layout) */}
               <Route element={<AppLayout />}>

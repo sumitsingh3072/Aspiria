@@ -54,6 +54,10 @@ export default function RegisterPage() {
         },
     });
 
+    const handleGoogleLogin = () => {
+        window.location.href = `${import.meta.env.VITE_API_URL}/auth/google/login`;
+    };
+
     async function onSubmit(values: z.infer<typeof formSchema>) {
         setIsLoading(true);
         try {
@@ -202,6 +206,7 @@ export default function RegisterPage() {
                             variant="outline"
                             className="h-10 border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-zinc-50"
                             disabled={isLoading}
+                            onClick={handleGoogleLogin}
                         >
                             <FcGoogle className="mr-2 h-4 w-4" />
                             Google
