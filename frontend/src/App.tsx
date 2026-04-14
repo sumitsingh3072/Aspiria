@@ -16,6 +16,13 @@ import IngestionPage from '@/pages/ingestion/index'
 import ProfilePage from '@/pages/profile/index'
 import NotificationsPage from '@/pages/notifications/index'
 import FeedbackPage from '@/pages/feedback/index'
+import PricingPage from './pages/landing/PricingPage'
+import ResourcesPage from './pages/landing/ResourcesPage'
+import AboutPage from './pages/landing/AboutPage'
+import ContactPage from './pages/landing/ContactPage'
+import TermsPage from './pages/legals/TermsPage'
+import PrivacyPage from './pages/legals/PrivacyPage'
+import RefundPage from './pages/legals/RefundPage'
 
 // Protected Route Wrapper - Temporarily Disabled (Pass-through)
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -52,6 +59,13 @@ function App() {
             <Routes>
               {/* Public Route - Landing Page */}
               <Route path="/" element={<LandingPage />} />
+              <Route path="/pricing" element={<PricingPage />} />
+              <Route path="/resources" element={<ResourcesPage />} />
+              <Route path="/about" element={<AboutPage />} />
+              <Route path="/contact" element={<ContactPage />} />
+              <Route path="/terms" element={<TermsPage />} />
+              <Route path="/privacy" element={<PrivacyPage />} />
+              <Route path="/refund" element={<RefundPage />} />
 
               {/* Auth Routes */}
               <Route path="/auth/login" element={<LoginPage />} />
