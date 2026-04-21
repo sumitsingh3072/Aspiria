@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { toast } from "sonner";
-import { Loader2, Save } from "lucide-react";
+import { Loader2, Save, FileText, CheckCircle2, Upload } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
@@ -42,6 +42,8 @@ type ProfileFormValues = z.infer<typeof formSchema>;
 export default function ProfilePage() {
     const queryClient = useQueryClient();
     const [isEditing, setIsEditing] = useState(false);
+    const [uploadingResume, setUploadingResume] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const { data: profile, isLoading: isProfileLoading } = useQuery({
         queryKey: ["profile"],
@@ -117,6 +119,34 @@ export default function ProfilePage() {
         mutation.mutate(values);
     }
 
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (file.type !== "application/pdf") {
+            toast.error("Please upload a PDF file.");
+            return;
+        }
+
+        setUploadingResume(true);
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+            await api.post("/resume/upload", formData, {
+                headers: { "Content-Type": "multipart/form-data" },
+            });
+            toast.success("Base resume uploaded and parsed successfully!");
+            queryClient.invalidateQueries({ queryKey: ["profile"] });
+        } catch (error) {
+            console.error(error);
+            toast.error("Failed to upload resume.");
+        } finally {
+            setUploadingResume(false);
+            if (fileInputRef.current) fileInputRef.current.value = "";
+        }
+    };
+
     if (isProfileLoading) {
         return <div className="flex h-[50vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
     }
@@ -129,6 +159,55 @@ export default function ProfilePage() {
                     This is how others will see you on the site.
                 </p>
             </div>
+
+            <Card className="border-primary/20 bg-primary/5">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <FileText className="h-5 w-5 text-primary" />
+                        Base Resume
+                    </CardTitle>
+                    <CardDescription>
+                        Upload your master resume. Our AI will extract your skills and experience.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {profile?.is_complete ? (
+                        <div className="flex items-center gap-3 p-4 bg-green-500/10 text-green-600 dark:text-green-400 rounded-md border border-green-500/20">
+                            <CheckCircle2 className="h-5 w-5" />
+                            <div>
+                                <p className="font-medium text-sm">Resume Uploaded</p>
+                                <p className="text-xs opacity-80">Your base resume is ready for tailoring.</p>
+                            </div>
+                            <div className="ml-auto">
+                                <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={uploadingResume}>
+                                    {uploadingResume ? <Loader2 className="h-4 w-4 animate-spin" /> : "Replace"}
+                                </Button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-primary/30 rounded-lg bg-background">
+                            <Upload className="h-8 w-8 text-muted-foreground mb-3" />
+                            <p className="text-sm font-medium mb-1">Upload your Base Resume</p>
+                            <p className="text-xs text-muted-foreground mb-4">PDF format only (Max 5MB)</p>
+                            <Button onClick={() => fileInputRef.current?.click()} disabled={uploadingResume}>
+                                {uploadingResume ? (
+                                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Uploading...</>
+                                ) : (
+                                    "Select File"
+                                )}
+                            </Button>
+                        </div>
+                    )}
+                    <input
+                        type="file"
+                        accept=".pdf"
+                        className="hidden"
+                        ref={fileInputRef}
+                        onChange={handleFileUpload}
+                    />
+                </CardContent>
+            </Card>
+
             <Card>
                 <CardHeader>
                     <CardTitle>Personal Information</CardTitle>

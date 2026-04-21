@@ -19,6 +19,7 @@ class User(Base):
     chat_messages = relationship("ChatMessage", back_populates="owner", cascade="all, delete-orphan")
     profile = relationship("Profile", uselist=False, back_populates="owner", cascade="all, delete-orphan")
     notifications = relationship("Notification", back_populates="owner", cascade="all, delete-orphan")
+    resumes = relationship("Resume", back_populates="owner", cascade="all, delete-orphan")
 
 class Profile(Base):
     """
@@ -36,6 +37,7 @@ class Profile(Base):
     career_aspirations = Column(Text, nullable=True)
     experience = Column(String, nullable=True)           # e.g. "Fresher", "2 years", "5+ years"
     preferred_job_roles = Column(JSON, nullable=True)    # e.g. ["Software Engineer", "Data Scientist"]
+    is_complete = Column(Boolean, default=False)
     owner = relationship("User", back_populates="profile")
 
 
@@ -64,3 +66,16 @@ class Feedback(Base):
     rating = Column(Integer, nullable=False) # e.g., 1 for "bad", 5 for "good"
     comment = Column(Text, nullable=True)
     chat_message = relationship("ChatMessage", back_populates="feedback")
+
+
+class Resume(Base):
+    """
+    Database model for user uploaded and parsed resumes.
+    """
+    __tablename__ = "resumes"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    resume_url = Column(String, nullable=True)
+    parsed_json = Column(JSON, nullable=True)
+    owner = relationship("User", back_populates="resumes")
+

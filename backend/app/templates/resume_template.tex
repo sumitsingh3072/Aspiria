@@ -1,0 +1,178 @@
+%-------------------------
+% Resume in Latex
+% Author : Jake Gutierrez
+% Based off of: https://github.com/sb2nov/resume
+% License : MIT
+%------------------------
+
+\documentclass[letterpaper,11pt]{article}
+
+\usepackage{latexsym}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{marvosym}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{verbatim}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+\usepackage[english]{babel}
+\usepackage{tabularx}
+\usepackage{fontawesome5}
+\usepackage{multicol}
+\setlength{\multicolsep}{-3.0pt}
+\setlength{\columnsep}{-1pt}
+\input{glyphtounicode}
+
+
+%----------FONT OPTIONS----------
+\usepackage{charter}
+
+
+\pagestyle{fancy}
+\fancyhf{} % clear all header and footer fields
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% Adjust margins
+\addtolength{\oddsidemargin}{-0.7in}
+\addtolength{\evensidemargin}{-0.8in}
+\addtolength{\textwidth}{1.4in}
+\addtolength{\topmargin}{-0.7in}
+\addtolength{\textheight}{1.3in}
+
+\urlstyle{same}
+
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+% Sections formatting
+\titleformat{\section}{
+  \vspace{-4pt}\raggedright\large\bfseries
+}{}{0em}{}[\color{black}\titlerule \vspace{-5pt}]
+
+% Ensure that generate pdf is machine readable/ATS parsable
+\pdfgentounicode=1
+
+%-------------------------
+% Custom commands
+\newcommand{\resumeItem}[1]{
+  \item\small{
+    {#1 \vspace{-2pt}}
+  }
+}
+
+\newcommand{\resumeSubheading}[4]{
+  \vspace{-2pt}\item
+    \begin{tabular*}{1.0\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      \textbf{#1} & \textbf{\small #2} \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{-7pt}
+}
+
+\newcommand{\resumeProjectHeading}[2]{
+    \item
+    \begin{tabular*}{1.001\textwidth}{l@{\extracolsep{\fill}}r}
+      \small#1 & \textbf{\small #2}\\
+    \end{tabular*}\vspace{-7pt}
+}
+
+\renewcommand\labelitemi{$\vcenter{\hbox{\tiny$\bullet$}}$}
+\renewcommand\labelitemii{$\vcenter{\hbox{\tiny$\bullet$}}$}
+
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.0in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-5pt}}
+
+%-------------------------------------------
+%%%%%%  RESUME STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+
+\vspace{-15pt}
+\begin{center}
+    {\Huge \scshape \VAR{name}} \\
+     
+    \small \color{Blue} \raisebox{0.1\height}
+    \BLOCK{if phone} \faPhone~\href{tel:\VAR{phone}}{\raisebox{-0.2\height}\  \underline{\VAR{phone}}} ~ \BLOCK{endif}
+    \BLOCK{if email} \href{mailto:\VAR{email}}{\raisebox{-0.2\height}\faEnvelope\  \underline{\VAR{email}}} ~ \BLOCK{endif}
+    \BLOCK{if linkedin} \href{\VAR{linkedin}}{\raisebox{-0.2\height}\faLinkedin\ \underline{LinkedIn profile}} ~ \BLOCK{endif}
+    \BLOCK{if github} \href{\VAR{github}}{\raisebox{-0.2\height}\faGithub\ \underline{Github profile}} \BLOCK{endif}
+\end{center}
+\vspace{-11pt}
+
+%-----------EDUCATION-----------
+\section{EDUCATION}
+  \resumeSubHeadingListStart
+  \BLOCK{for ed in education}
+    \resumeSubheading
+      {\VAR{ed.institution}}{\VAR{ed.duration}}
+      {\VAR{ed.degree}}{\textbf{CGPA/Score:} \VAR{ed.score}}
+  \BLOCK{endfor}
+  \resumeSubHeadingListEnd
+
+%-----------EXPERIENCE-----------
+\section{EXPERIENCE}
+  \resumeSubHeadingListStart
+  \BLOCK{for exp in experience}
+  \resumeSubheading
+  {\VAR{exp.company}}{\VAR{exp.duration}}
+  {\VAR{exp.role}}{\VAR{exp.location}}
+  \resumeItemListStart
+    \BLOCK{for detail in exp.details}
+    \resumeItem{\VAR{detail}}
+    \BLOCK{endfor}
+  \resumeItemListEnd
+  \BLOCK{endfor}
+  \resumeSubHeadingListEnd
+
+\vspace{-13pt}
+
+%-----------PROGRAMMING SKILLS-----------
+\section{SKILLS}
+ \begin{itemize}[leftmargin=0.15in, label={}]
+    \small{\item{
+     \BLOCK{for skill in skills}
+     \textbf{\VAR{skill.category}}{: \VAR{skill.items}}\\
+     \BLOCK{endfor}
+    }}
+ \end{itemize}
+ \vspace{-13pt}
+
+%-----------PROJECTS-----------
+\section{PROJECTS}
+    \vspace{-7pt}
+    \resumeSubHeadingListStart
+    \BLOCK{for proj in projects}
+    \resumeProjectHeading
+    {\textbf{\href{\VAR{proj.link}}{\underline{\VAR{proj.name}} \footnotesize \faExternalLink*}} $|$ \emph{\VAR{proj.technologies}} $|$ \emph{\href{\VAR{proj.repo_link}}{\color{Blue}Source Code \faGithub}}}{\VAR{proj.duration}}
+    \vspace{-12pt}
+    \resumeItemListStart
+        \BLOCK{for detail in proj.details}
+        \resumeItem{\VAR{detail}}
+        \BLOCK{endfor}
+    \resumeItemListEnd
+    \vspace{-15pt}
+    \BLOCK{endfor}
+    \resumeSubHeadingListEnd
+
+\vspace{-12pt}
+
+%-----------ACHIEVEMENTS---------------
+\section{ACHIEVEMENTS}
+    \resumeSubHeadingListStart
+    \BLOCK{for ach in achievements}
+    \resumeSubheading{\VAR{ach.title}}{}{}{}
+    \resumeItemListStart
+        \vspace{-14pt}
+        \resumeItem{\VAR{ach.description}} 
+    \resumeItemListEnd
+    \BLOCK{endfor}
+    \resumeSubHeadingListEnd
+
+\vspace{-10pt}
+
+\end{document}

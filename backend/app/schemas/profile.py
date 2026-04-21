@@ -10,6 +10,7 @@ class ProfileBase(BaseModel):
     career_aspirations: Optional[str] = Field(None)
     experience: Optional[str] = Field(None)
     preferred_job_roles: Optional[List[str]] = Field(None)
+    is_complete: Optional[bool] = Field(False)
 
 class ProfileCreate(ProfileBase):
     """Schema for creating a profile. All fields are optional at creation."""

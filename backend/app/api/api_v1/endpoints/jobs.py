@@ -64,3 +64,30 @@ def auto_apply_for_job(
 
     return {"status": "success", "message": f"Successfully initiated auto-apply for job {job_id} using profile for {current_user.email}"}
 
+from backend.app.services.ats_scorer import calculate_ats_score
+
+class ScoreRequest(BaseModel):
+    job_id: int
+    resume_id: int
+
+@router.post("/score")
+def score_resume(
+    request: ScoreRequest,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user)
+):
+    from backend.models.user import Resume
+
+    job = db.query(Job).filter(Job.id == request.job_id).first()
+    resume = db.query(Resume).filter(Resume.id == request.resume_id, Resume.user_id == current_user.id).first()
+
+    if not job or not resume:
+        raise HTTPException(status_code=404, detail="Job or Resume not found")
+
+    parsed_json = resume.parsed_json or {}
+    job_desc = job.description or ""
+    job_skills = job.skills or []
+    
+    score_result = calculate_ats_score(parsed_json, job_desc, job_skills)
+    
+    return score_result

@@ -2,7 +2,7 @@ import { useState } from "react";
 import {
     Database, Zap, Clock, RefreshCw, Search, MapPin, Building2,
     Loader2, Briefcase, Crown, CheckCircle2, ExternalLink,
-    ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Tag
+    ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Tag, Sparkles, ArrowRight
 } from "lucide-react";
 import { toast } from "sonner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -20,6 +20,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { AnimatePresence, motion } from "framer-motion";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import CompilePreview from "@/components/resume/CompilePreview";
 import api from "@/lib/api";
 
 interface Job {
@@ -51,6 +53,10 @@ export default function IngestionPage() {
     const [searchTerm, setSearchTerm] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const [expandedJobId, setExpandedJobId] = useState<number | null>(null);
+    const [tailoringJobId, setTailoringJobId] = useState<number | null>(null);
+    const [isTailoring, setIsTailoring] = useState(false);
+    const [tailorResult, setTailorResult] = useState<any>(null);
+    const [showTailorModal, setShowTailorModal] = useState(false);
     const queryClient = useQueryClient();
 
     // Auto-trigger pipeline on page load (same as dashboard)
@@ -149,6 +155,26 @@ export default function IngestionPage() {
         setSearchTerm(val);
         setCurrentPage(1);
         setExpandedJobId(null);
+    };
+
+    const handleTailor = async (jobId: number) => {
+        setTailoringJobId(jobId);
+        setIsTailoring(true);
+        setShowTailorModal(true);
+        setTailorResult(null);
+
+        try {
+            const { data } = await api.post("/resume/tailor", { job_id: jobId });
+            setTailorResult(data);
+            toast.success("Resume tailored successfully!");
+        } catch (error: any) {
+            console.error(error);
+            toast.error(error.response?.data?.detail || "Failed to tailor resume");
+            setShowTailorModal(false);
+        } finally {
+            setIsTailoring(false);
+            setTailoringJobId(null);
+        }
     };
 
     return (
@@ -401,6 +427,18 @@ export default function IngestionPage() {
                                                                         <ExternalLink className="h-3 w-3" /> Apply via
                                                                     </h5>
                                                                     <div className="flex flex-wrap gap-2">
+                                                                        <Button
+                                                                            size="sm"
+                                                                            className="bg-primary text-primary-foreground hover:bg-primary/90 h-8"
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                handleTailor(job.id);
+                                                                            }}
+                                                                            disabled={isTailoring}
+                                                                        >
+                                                                            <Sparkles className="h-3 w-3 mr-1.5" />
+                                                                            Tailor Resume
+                                                                        </Button>
                                                                         {job.apply_options.map((opt, i) => (
                                                                             <Button
                                                                                 key={i}
@@ -494,6 +532,47 @@ export default function IngestionPage() {
                     )}
                 </CardContent>
             </Card>
+
+            {/* Tailor Resume Modal */}
+            <Dialog open={showTailorModal} onOpenChange={setShowTailorModal}>
+                <DialogContent className="max-w-[90vw] w-full h-[90vh] flex flex-col p-0 overflow-hidden">
+                    <DialogHeader className="p-6 pb-2 border-b">
+                        <DialogTitle className="flex items-center gap-2 text-2xl">
+                            <Sparkles className="h-6 w-6 text-primary" />
+                            AI Resume Tailoring
+                        </DialogTitle>
+                        <DialogDescription>
+                            We optimized your base resume to perfectly match this job description.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex-1 overflow-auto bg-muted/20">
+                        {isTailoring ? (
+                            <div className="flex flex-col items-center justify-center h-[50vh] gap-4">
+                                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                                <p className="text-lg font-medium animate-pulse">Analyzing job and tailoring your resume...</p>
+                            </div>
+                        ) : tailorResult ? (
+                            <div className="flex flex-col h-full">
+                                <div className="flex items-center justify-center gap-6 p-4 bg-background border-b">
+                                    <div className="text-center">
+                                        <p className="text-sm text-muted-foreground">Original ATS Score</p>
+                                        <p className="text-2xl font-bold text-red-500">{tailorResult.score_before?.total_score}%</p>
+                                    </div>
+                                    <ArrowRight className="h-8 w-8 text-muted-foreground" />
+                                    <div className="text-center">
+                                        <p className="text-sm text-muted-foreground">Tailored ATS Score</p>
+                                        <p className="text-3xl font-bold text-green-500">{tailorResult.score_after?.total_score}%</p>
+                                    </div>
+                                </div>
+                                <div className="flex-1">
+                                    <CompilePreview initialLatex={tailorResult.latex} />
+                                </div>
+                            </div>
+                        ) : null}
+                    </div>
+                </DialogContent>
+            </Dialog>
+
         </div>
     );
 }
