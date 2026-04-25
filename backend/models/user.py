@@ -4,6 +4,7 @@ from backend.db.session import Base
 from sqlalchemy.sql import func
 from backend.models.job import Job 
 from backend.models.backend_notification import Notification  # noqa: F401 — required for SQLAlchemy relationship resolution
+from pgvector.sqlalchemy import Vector
 
 class User(Base):
     """
@@ -38,6 +39,7 @@ class Profile(Base):
     experience = Column(String, nullable=True)           # e.g. "Fresher", "2 years", "5+ years"
     preferred_job_roles = Column(JSON, nullable=True)    # e.g. ["Software Engineer", "Data Scientist"]
     is_complete = Column(Boolean, default=False)
+    profile_embedding = Column(Vector(384), nullable=True)
     owner = relationship("User", back_populates="profile")
 
 

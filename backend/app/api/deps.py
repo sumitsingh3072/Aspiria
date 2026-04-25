@@ -1,4 +1,4 @@
-from typing import Generator
+from typing import Generator, Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
@@ -14,6 +14,10 @@ from backend.db import crud
 # This defines the URL where the client will send username/password to get a token
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl=f"{settings.API_V1_STR}/auth/login"
+)
+oauth2_scheme_optional = OAuth2PasswordBearer(
+    tokenUrl=f"{settings.API_V1_STR}/auth/login",
+    auto_error=False
 )
 
 def get_db() -> Generator[Session, None, None]:
@@ -67,3 +71,24 @@ def get_current_active_user(
     if not current_user.is_active: # type: ignore
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
+
+def get_current_user_optional(
+    db: Session = Depends(get_db), token: Optional[str] = Depends(oauth2_scheme_optional)
+) -> Optional[User]:
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[security.ALGORITHM]
+        )
+        email: str | None = payload.get("sub")
+        if email is None:
+            return None
+        token_data = TokenData(email=email)
+    except JWTError:
+        return None
+    
+    user = crud.get_user_by_email(db, email=token_data.email) #type: ignore
+    if user and user.is_active:
+        return user
+    return None

@@ -35,6 +35,7 @@ interface Job {
     apply_options: { title: string; link: string }[] | null;
     schedule_type: string | null;
     posted_at: string | null;
+    match_percentage?: number | null;
 }
 
 interface IngestionStatus {
@@ -341,6 +342,18 @@ export default function IngestionPage() {
                                                     {job.schedule_type && (
                                                         <Badge variant="secondary" className="text-[10px] shrink-0">
                                                             {job.schedule_type}
+                                                        </Badge>
+                                                    )}
+                                                    {job.match_percentage != null && (
+                                                        <Badge
+                                                            variant="outline"
+                                                            className={`text-[10px] font-semibold border ${
+                                                                job.match_percentage >= 80 ? "bg-green-500/10 text-green-600 border-green-500/20" :
+                                                                job.match_percentage >= 50 ? "bg-yellow-500/10 text-yellow-600 border-yellow-500/20" :
+                                                                "bg-red-500/10 text-red-600 border-red-500/20"
+                                                            }`}
+                                                        >
+                                                            {job.match_percentage}% Match
                                                         </Badge>
                                                     )}
                                                 </div>

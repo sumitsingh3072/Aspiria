@@ -29,6 +29,7 @@ interface Job {
     location: string | null;
     description: string | null;
     skills: string[] | null;
+    match_percentage?: number | null;
 }
 
 const container = {
@@ -161,7 +162,21 @@ export default function DashboardPage() {
                                                     )}
                                                 </div>
                                             </div>
-                                            <Badge variant="outline" className="text-[10px] ml-2 shrink-0">#{job.id}</Badge>
+                                            <div className="flex flex-col items-end gap-1 ml-2 shrink-0">
+                                                {job.match_percentage != null && (
+                                                    <Badge
+                                                        variant="outline"
+                                                        className={`text-[10px] font-semibold border ${
+                                                            job.match_percentage >= 80 ? "bg-green-500/10 text-green-600 border-green-500/20" :
+                                                            job.match_percentage >= 50 ? "bg-yellow-500/10 text-yellow-600 border-yellow-500/20" :
+                                                            "bg-red-500/10 text-red-600 border-red-500/20"
+                                                        }`}
+                                                    >
+                                                        {job.match_percentage}% Match
+                                                    </Badge>
+                                                )}
+                                                <Badge variant="outline" className="text-[10px]">#{job.id}</Badge>
+                                            </div>
                                         </div>
                                     ))
                                 ) : (

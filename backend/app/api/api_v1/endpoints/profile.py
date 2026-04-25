@@ -4,9 +4,29 @@ from sqlalchemy.orm import Session
 from backend.app.api import deps
 from backend.app.schemas import profile
 from backend.db import crud
-from backend.models.user import User
+from backend.models.user import User, Profile
+from backend.app.services.job_ingestion import embedding_model
 
 router = APIRouter()
+
+def _update_profile_embedding(db: Session, profile: Profile):
+    if embedding_model:
+        text_parts = []
+        if profile.preferred_job_roles:
+            text_parts.extend(profile.preferred_job_roles)
+        if profile.skills:
+            text_parts.extend(profile.skills)
+        if profile.experience:
+            text_parts.append(profile.experience)
+        if profile.interests:
+            text_parts.extend(profile.interests)
+        text_to_embed = " ".join(text_parts)
+        if text_to_embed:
+            emb = embedding_model.encode(text_to_embed).tolist()
+            profile.profile_embedding = emb
+            db.commit()
+            db.refresh(profile)
+
 
 @router.get("/me", response_model=profile.ProfileRead)
 def read_current_user_profile(
@@ -41,6 +61,7 @@ def create_current_user_profile(
             detail="Profile already exists for this user. Use the update endpoint instead.",
         )
     profile = crud.create_user_profile(db=db, profile=profile_in, user_id=current_user.id)
+    _update_profile_embedding(db, profile)
     return profile
 
 
@@ -60,5 +81,6 @@ def update_current_user_profile(
             detail="Profile not found. Please create one first.",
         )
     profile = crud.update_user_profile(db=db, db_profile=db_profile, profile_in=profile_in)
+    _update_profile_embedding(db, profile)
     return profile
 

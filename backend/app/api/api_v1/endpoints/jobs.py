@@ -1,4 +1,5 @@
 from typing import List, Optional
+import numpy as np
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -19,6 +20,7 @@ class JobRead(BaseModel):
     apply_options: Optional[list] = None
     schedule_type: Optional[str] = None
     posted_at: Optional[str] = None
+    match_percentage: Optional[int] = None
 
     class Config:
         from_attributes = True
@@ -29,6 +31,7 @@ def list_jobs(
     limit: int = Query(50, ge=1, le=200),
     search: Optional[str] = None,
     db: Session = Depends(deps.get_db),
+    current_user: Optional[User] = Depends(deps.get_current_user_optional),
 ):
     """
     Retrieve all ingested job listings.
@@ -39,7 +42,38 @@ def list_jobs(
             Job.title.ilike(f"%{search}%") | Job.company.ilike(f"%{search}%")
         )
     jobs = query.order_by(Job.id.desc()).offset(skip).limit(limit).all()
-    return jobs
+    
+    results = []
+    profile_emb = None
+    if current_user and current_user.profile and current_user.profile.profile_embedding is not None:
+        profile_emb = np.array(current_user.profile.profile_embedding)
+
+    for job in jobs:
+        match_pct = None
+        if profile_emb is not None and job.description_embedding is not None:
+            job_emb = np.array(job.description_embedding)
+            norm1 = np.linalg.norm(profile_emb)
+            norm2 = np.linalg.norm(job_emb)
+            if norm1 > 0 and norm2 > 0:
+                sim = np.dot(profile_emb, job_emb) / (norm1 * norm2)
+                match_pct = max(0, min(100, int(sim * 100)))
+        
+        job_dict = {
+            "id": job.id,
+            "title": job.title,
+            "company": job.company,
+            "location": job.location,
+            "description": job.description,
+            "skills": job.skills,
+            "source": job.source,
+            "apply_options": job.apply_options,
+            "schedule_type": job.schedule_type,
+            "posted_at": job.posted_at,
+            "match_percentage": match_pct
+        }
+        results.append(JobRead(**job_dict))
+        
+    return results
 
 @router.get("/count")
 def get_jobs_count(db: Session = Depends(deps.get_db)):
