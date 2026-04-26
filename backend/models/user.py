@@ -21,6 +21,7 @@ class User(Base):
     profile = relationship("Profile", uselist=False, back_populates="owner", cascade="all, delete-orphan")
     notifications = relationship("Notification", back_populates="owner", cascade="all, delete-orphan")
     resumes = relationship("Resume", back_populates="owner", cascade="all, delete-orphan")
+    job_applications = relationship("JobApplication", back_populates="owner", cascade="all, delete-orphan")
 
 class Profile(Base):
     """

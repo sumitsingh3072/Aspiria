@@ -83,6 +83,20 @@ def get_jobs_count(db: Session = Depends(deps.get_db)):
     count = db.query(Job).count()
     return {"count": count}
 
+# --- Application Tracking ---
+from backend.models.job import JobApplication
+
+@router.get("/applied/ids")
+def get_applied_job_ids(
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+):
+    """Return the list of job IDs the current user has applied to."""
+    rows = db.query(JobApplication.job_id).filter(
+        JobApplication.user_id == current_user.id
+    ).all()
+    return [r[0] for r in rows]
+
 @router.post("/{job_id}/auto-apply")
 def auto_apply_for_job(
     job_id: int,
@@ -125,3 +139,46 @@ def score_resume(
     score_result = calculate_ats_score(parsed_json, job_desc, job_skills)
     
     return score_result
+
+
+@router.post("/{job_id}/track")
+def track_job_application(
+    job_id: int,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+):
+    """Mark a job as applied by the current user."""
+    job = db.query(Job).filter(Job.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    existing = db.query(JobApplication).filter(
+        JobApplication.user_id == current_user.id,
+        JobApplication.job_id == job_id,
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Already tracked this job")
+
+    app = JobApplication(user_id=current_user.id, job_id=job_id, status="applied")
+    db.add(app)
+    db.commit()
+    db.refresh(app)
+    return {"id": app.id, "job_id": app.job_id, "status": app.status}
+
+
+@router.delete("/{job_id}/track")
+def untrack_job_application(
+    job_id: int,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+):
+    """Remove an application tracking entry."""
+    app = db.query(JobApplication).filter(
+        JobApplication.user_id == current_user.id,
+        JobApplication.job_id == job_id,
+    ).first()
+    if not app:
+        raise HTTPException(status_code=404, detail="Application not found")
+    db.delete(app)
+    db.commit()
+    return {"detail": "Application removed"}

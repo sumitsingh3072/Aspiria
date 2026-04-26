@@ -84,3 +84,51 @@ def update_current_user_profile(
     _update_profile_embedding(db, profile)
     return profile
 
+
+# --- Application Tracking from Profile ---
+from backend.models.job import JobApplication
+from backend.app.schemas.job import JobApplicationRead, JobApplicationStatusUpdate
+from typing import List
+
+VALID_STATUSES = {"applied", "selected", "rejected", "in-touch"}
+
+@router.get("/applications", response_model=List[JobApplicationRead])
+def get_my_applications(
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+):
+    """Get all job applications for the current user."""
+    apps = (
+        db.query(JobApplication)
+        .filter(JobApplication.user_id == current_user.id)
+        .order_by(JobApplication.applied_at.desc())
+        .all()
+    )
+    return apps
+
+
+@router.put("/applications/{app_id}/status", response_model=JobApplicationRead)
+def update_application_status(
+    app_id: int,
+    body: JobApplicationStatusUpdate,
+    db: Session = Depends(deps.get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+):
+    """Update the status of a specific application."""
+    if body.status not in VALID_STATUSES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid status. Must be one of: {', '.join(VALID_STATUSES)}",
+        )
+
+    app = db.query(JobApplication).filter(
+        JobApplication.id == app_id,
+        JobApplication.user_id == current_user.id,
+    ).first()
+    if not app:
+        raise HTTPException(status_code=404, detail="Application not found")
+
+    app.status = body.status
+    db.commit()
+    db.refresh(app)
+    return app

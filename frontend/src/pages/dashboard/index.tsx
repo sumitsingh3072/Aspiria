@@ -13,6 +13,7 @@ import {
     MoveRight,
     Building2,
     MapPin,
+    CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
@@ -74,6 +75,16 @@ export default function DashboardPage() {
             return data;
         },
     });
+
+    const { data: appliedIds } = useQuery<number[]>({
+        queryKey: ["applied-job-ids"],
+        queryFn: async () => {
+            const { data } = await api.get("/jobs/applied/ids");
+            return data;
+        },
+    });
+
+    const appliedSet = new Set(appliedIds ?? []);
 
     const jobCount = countData?.count ?? 0;
 
@@ -176,6 +187,11 @@ export default function DashboardPage() {
                                                     </Badge>
                                                 )}
                                                 <Badge variant="outline" className="text-[10px]">#{job.id}</Badge>
+                                                {appliedSet.has(job.id) && (
+                                                    <Badge variant="outline" className="text-[10px] bg-green-500/10 text-green-600 border-green-500/20">
+                                                        <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" /> Applied
+                                                    </Badge>
+                                                )}
                                             </div>
                                         </div>
                                     ))

@@ -58,6 +58,7 @@ export default function IngestionPage() {
     const [isTailoring, setIsTailoring] = useState(false);
     const [tailorResult, setTailorResult] = useState<any>(null);
     const [showTailorModal, setShowTailorModal] = useState(false);
+    const [trackingJobId, setTrackingJobId] = useState<number | null>(null);
     const queryClient = useQueryClient();
 
     // Auto-trigger pipeline on page load (same as dashboard)
@@ -121,6 +122,34 @@ export default function IngestionPage() {
         queryFn: async () => {
             const { data } = await api.get("/jobs/count");
             return data;
+        },
+    });
+
+    const { data: appliedIds } = useQuery<number[]>({
+        queryKey: ["applied-job-ids"],
+        queryFn: async () => {
+            const { data } = await api.get("/jobs/applied/ids");
+            return data;
+        },
+    });
+
+    const appliedSet = new Set(appliedIds ?? []);
+
+    const trackMutation = useMutation({
+        mutationFn: async (jobId: number) => {
+            setTrackingJobId(jobId);
+            const { data } = await api.post(`/jobs/${jobId}/track`);
+            return data;
+        },
+        onSuccess: () => {
+            toast.success("Job marked as applied!");
+            queryClient.invalidateQueries({ queryKey: ["applied-job-ids"] });
+        },
+        onError: () => {
+            toast.error("Failed to track job.");
+        },
+        onSettled: () => {
+            setTrackingJobId(null);
         },
     });
 
@@ -470,6 +499,40 @@ export default function IngestionPage() {
                                                                     </div>
                                                                 </div>
                                                             )}
+
+                                                            {/* Track Application Button */}
+                                                            <div className="pt-3 border-t">
+                                                                {appliedSet.has(job.id) ? (
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="outline"
+                                                                        className="h-8 text-xs bg-green-500/10 text-green-600 border-green-500/20 cursor-default"
+                                                                        disabled
+                                                                        onClick={(e) => e.stopPropagation()}
+                                                                    >
+                                                                        <CheckCircle2 className="h-3 w-3 mr-1.5" />
+                                                                        Applied ✓
+                                                                    </Button>
+                                                                ) : (
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="outline"
+                                                                        className="h-8 text-xs"
+                                                                        disabled={trackingJobId === job.id}
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            trackMutation.mutate(job.id);
+                                                                        }}
+                                                                    >
+                                                                        {trackingJobId === job.id ? (
+                                                                            <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                                                                        ) : (
+                                                                            <Briefcase className="h-3 w-3 mr-1.5" />
+                                                                        )}
+                                                                        Mark as Applied
+                                                                    </Button>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </motion.div>
