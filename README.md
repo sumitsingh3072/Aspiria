@@ -211,29 +211,4 @@ open http://localhost:8000/docs
 
 - Frontend at http://localhost
 
-## Logging persistence (optional)
 
-By default logs are ephemeral (captured by Docker). If you want persistent log files:
-
-- Option A: Configure Python logging to write to a file inside the container and mount a host volume to persist it (e.g. map `./logs:/app/logs`).
-- Option B: Configure Uvicorn/Gunicorn to write logs to a file and mount volume.
-
-If you'd like, I can add a simple `logging` configuration and a `volumes` entry in `docker-compose.yml` to persist backend logs.
-
-## Notes about changes made during setup
-
-- `backend/.env` was added with minimal, placeholder values so the compose stack could start.
-- `frontend/tsconfig.app.json` was relaxed to avoid build failures in the Docker build (see the "Frontend TypeScript" section above for details).
-
-If you want these changes reverted or committed differently (branch, .env.example, etc.), tell me and I can update accordingly.
-
-## Next steps I can help with
-
-- Revert the TS config change and fix the unused imports.
-- Add persistent logging (file + volume) for backend.
-- Add a README section for development without Docker (venv, local install).
-- Run migrations and seed data, or open specific logs and investigate errors.
-
----
-
-If you want this README extended with developer notes (how to run tests, test coverage, CI commands), tell me which area to document next and I'll add it.
