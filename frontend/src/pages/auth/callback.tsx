@@ -12,9 +12,15 @@ export default function AuthCallback() {
     useEffect(() => {
         const token = searchParams.get("token");
         if (token) {
-            login(token);
-            toast.success("Successfully logged in via Google!");
-            navigate("/dashboard");
+            login(token)
+                .then(() => {
+                    toast.success("Successfully logged in via Google!");
+                    navigate("/dashboard");
+                })
+                .catch((error) => {
+                    toast.error("Authentication failed. Unable to fetch user profile.");
+                    navigate("/auth/login");
+                });
         } else {
             toast.error("Authentication failed. No token received.");
             navigate("/auth/login");

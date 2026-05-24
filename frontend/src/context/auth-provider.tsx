@@ -12,7 +12,7 @@ interface User {
 interface AuthContextType {
     user: User | null;
     isLoading: boolean;
-    login: (token: string) => void;
+    login: (token: string) => Promise<User>;
     logout: () => void;
     setUser: (user: User | null) => void;
 }
@@ -46,15 +46,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         initAuth();
     }, []);
 
-    const login = (token: string) => {
+    const login = async (token: string) => {
         localStorage.setItem("accessToken", token);
-        // Fetch user immediately after setting token
-        api.get<User>("/auth/me")
-            .then(({ data }) => setUser(data))
-            .catch((error) => {
-                console.error("Login fetch user failed", error);
-                logout();
-            });
+        try {
+            const { data } = await api.get<User>("/auth/me");
+            setUser(data);
+            return data;
+        } catch (error) {
+            console.error("Login fetch user failed", error);
+            logout();
+            throw error;
+        }
     };
 
     const logout = () => {

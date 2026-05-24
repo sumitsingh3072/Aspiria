@@ -63,9 +63,9 @@ export default function LoginPage() {
                 headers: { "Content-Type": "application/x-www-form-urlencoded" },
             });
 
-            login(response.data.access_token);
+            await login(response.data.access_token);
             toast.success("Welcome back!");
-            navigate("/");
+            navigate("/profile");
         } catch (error: any) {
             toast.error(
                 error.response?.data?.detail || "Invalid email or password. Please try again."
